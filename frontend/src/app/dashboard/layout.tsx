@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { DashboardAppProvider } from '@/hooks/useDashboardApp';
 import { appsApi, trainersApi } from '@/lib/api';
 import type { TrainerApp, Trainer } from '@/types';
 
@@ -72,7 +73,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     const tabs = [
         { href: `/dashboard?app_id=${effectiveAppId}`, label: 'Inicio', exact: true },
         { href: `/dashboard/clients?app_id=${effectiveAppId}`, label: 'Clientes' },
-        { href: `/dashboard/locations?app_id=${effectiveAppId}&trainer_id=${app.trainer_id}`, label: 'Ubicaciones' },
+        { href: `/dashboard/locations?app_id=${effectiveAppId}`, label: 'Ubicaciones' },
         { href: `/dashboard/calendar?app_id=${effectiveAppId}`, label: 'Calendario' },
     ];
 
@@ -86,6 +87,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     return (
         <ThemeProvider initialThemeId={app.theme_id}>
+            <DashboardAppProvider app={app} trainer={trainer}>
             <div style={{ minHeight: '100vh' }}>
                 {/* Header */}
                 <header style={{
@@ -105,8 +107,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                                     src={trainer.logo_url}
                                     alt="Logo"
                                     style={{
-                                        width: '128px',
-                                        height: '128px',
+                                        width: '64px',
+                                        height: '64px',
                                         borderRadius: '50%',
                                         objectFit: 'cover',
                                         border: '2px solid #e1e5e9'
@@ -154,6 +156,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                     {children}
                 </main>
             </div>
+            </DashboardAppProvider>
         </ThemeProvider>
     );
 }

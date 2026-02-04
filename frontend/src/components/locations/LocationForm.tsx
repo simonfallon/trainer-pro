@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Location, LocationType, LocationCreateInput } from '@/types';
+import { LOCATION_TYPE_LABELS } from '@/lib/labels';
 import { LocationPicker } from '../LocationPicker';
 
 interface LocationFormProps {
@@ -137,11 +138,9 @@ export const LocationForm: React.FC<LocationFormProps> = ({
                                     value={formData.type}
                                     onChange={(e) => setFormData({ ...formData, type: e.target.value as LocationType })}
                                 >
-                                    <option value="gym">Gimnasio</option>
-                                    <option value="track">Pista/Cancha</option>
-                                    <option value="trainer_base">Base del Entrenador</option>
-                                    <option value="client_home">Casa del Cliente</option>
-                                    <option value="other">Otro</option>
+                                    {Object.entries(LOCATION_TYPE_LABELS).map(([value, label]) => (
+                                        <option key={value} value={value}>{label}</option>
+                                    ))}
                                 </select>
                             </div>
 

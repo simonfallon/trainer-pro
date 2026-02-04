@@ -1,17 +1,18 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { clientsApi, appsApi } from '@/lib/api';
-import type { Client, TrainerApp } from '@/types';
+import { useState } from 'react';
+import useSWR, { mutate } from 'swr';
+import { useRouter } from 'next/navigation';
+import { clientsApi } from '@/lib/api';
+import { useDashboardApp } from '@/hooks/useDashboardApp';
+import type { Client } from '@/types';
 
-function ClientsPageContent() {
-    const searchParams = useSearchParams();
+export default function ClientsPage() {
+    const { app } = useDashboardApp();
     const router = useRouter();
-    const appId = searchParams.get('app_id');
-    const [clients, setClients] = useState<Client[]>([]);
-    const [app, setApp] = useState<TrainerApp | null>(null);
-    const [loading, setLoading] = useState(true);
+    const swrKey = `/clients-list-${app.trainer_id}`;
+    const { data: clients = [], isLoading } = useSWR<Client[]>(swrKey, () => clientsApi.list(app.trainer_id));
+
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
@@ -22,32 +23,9 @@ function ClientsPageContent() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
-    const fetchClients = async (trainerId: string) => {
-        const data = await clientsApi.list(trainerId);
-        setClients(data);
-    };
-
-    useEffect(() => {
-        if (!appId) return;
-
-        const loadData = async () => {
-            try {
-                const appData = await appsApi.get(appId);
-                setApp(appData);
-                await fetchClients(appData.trainer_id);
-            } catch (err) {
-                console.error('Failed to load clients:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadData();
-    }, [appId]);
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!app || !formData.name.trim() || !formData.phone.trim()) return;
+        if (!formData.name.trim() || !formData.phone.trim()) return;
 
         setSubmitting(true);
         setError('');
@@ -60,8 +38,7 @@ function ClientsPageContent() {
                 email: formData.email.trim() || undefined,
                 notes: formData.notes.trim() || undefined,
             });
-
-            await fetchClients(app.trainer_id);
+            mutate(swrKey);
             setShowForm(false);
             setFormData({ name: '', phone: '', email: '', notes: '' });
         } catch (err) {
@@ -76,13 +53,13 @@ function ClientsPageContent() {
 
         try {
             await clientsApi.delete(clientId);
-            setClients(clients.filter(c => c.id !== clientId));
+            mutate(swrKey);
         } catch (err) {
             console.error('Failed to delete client:', err);
         }
     };
 
-    if (loading) {
+    if (isLoading) {
         return <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando clientes...</div>;
     }
 
@@ -206,13 +183,11 @@ function ClientsPageContent() {
                             {clients.map((client) => (
                                 <tr
                                     key={client.id}
-                                    onClick={() => router.push(`/dashboard/clients/${client.id}?app_id=${appId}`)}
+                                    onClick={() => router.push(`/dashboard/clients/${client.id}?app_id=${app.id}`)}
                                     style={{
                                         cursor: 'pointer',
                                         transition: 'background-color 0.2s',
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <td style={{ fontWeight: 600 }}>{client.name}</td>
                                     <td>{client.phone}</td>
@@ -244,13 +219,5 @@ function ClientsPageContent() {
                 </div>
             )}
         </div>
-    );
-}
-
-export default function ClientsPage() {
-    return (
-        <Suspense fallback={<div style={{ textAlign: 'center', padding: '3rem' }}>Cargando...</div>}>
-            <ClientsPageContent />
-        </Suspense>
     );
 }

@@ -106,30 +106,14 @@ export default function HomePage() {
                 <div className="card fade-in" style={{ width: '100%', maxWidth: '600px' }}>
                     {/* Progress indicator */}
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
-                        <div
-                            style={{
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} style={{
                                 flex: 1,
                                 height: '4px',
                                 borderRadius: '2px',
-                                backgroundColor: step >= 1 ? 'var(--color-primary)' : '#e1e5e9',
-                            }}
-                        />
-                        <div
-                            style={{
-                                flex: 1,
-                                height: '4px',
-                                borderRadius: '2px',
-                                backgroundColor: step >= 2 ? 'var(--color-primary)' : '#e1e5e9',
-                            }}
-                        />
-                        <div
-                            style={{
-                                flex: 1,
-                                height: '4px',
-                                borderRadius: '2px',
-                                backgroundColor: step >= 3 ? 'var(--color-primary)' : '#e1e5e9',
-                            }}
-                        />
+                                backgroundColor: step >= i ? 'var(--color-primary)' : '#e1e5e9',
+                            }} />
+                        ))}
                     </div>
 
                     {step === 1 && (
@@ -199,7 +183,6 @@ export default function HomePage() {
 
                                 <ImageUpload
                                     onImageSelected={setLogoFile}
-                                    currentImage={undefined}
                                     label="Logo de tu Marca (Opcional)"
                                 />
                                 <small style={{ color: 'var(--color-secondary)', fontSize: '0.875rem', display: 'block', marginTop: '-0.5rem' }}>

@@ -4,33 +4,12 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
 import { clientsApi, sessionsApi } from '@/lib/api';
-import { useTheme } from '@/components/ThemeProvider';
+import { useDarkStyles } from '@/hooks/useDarkStyles';
+import { formatDate } from '@/lib/dateUtils';
+import { SESSION_STATUS_LABELS } from '@/lib/labels';
+import { PaymentModal } from '@/components/PaymentModal';
+import { SessionDetailModal } from '@/components/SessionDetailModal';
 import type { Client, TrainingSession, PaymentBalance } from '@/types';
-
-// ---------------------------------------------------------------------------
-// Helpers (file-scope, pure, no React dependency)
-// ---------------------------------------------------------------------------
-
-function isDarkTheme(bgHex: string): boolean {
-    const hex = bgHex.replace('#', '');
-    const r = parseInt(hex.substring(0, 2), 16) / 255;
-    const g = parseInt(hex.substring(2, 4), 16) / 255;
-    const b = parseInt(hex.substring(4, 6), 16) / 255;
-
-    const linearize = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-    const L = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
-    return L < 0.18;
-}
-
-function formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString('es-CO', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -42,7 +21,7 @@ export default function ClientDetailPage() {
     const searchParams = useSearchParams();
     const clientId = params.id as string;
     const appId = searchParams.get('app_id');
-    const { theme } = useTheme();
+    const { darkStyles, theme } = useDarkStyles();
 
     // -----------------------------------------------------------------------
     // Data
@@ -63,33 +42,8 @@ export default function ClientDetailPage() {
     );
 
     // -----------------------------------------------------------------------
-    // Derived / dark-mode styles (computed during render — no effect, no memo)
-    // -----------------------------------------------------------------------
-    const isDark = isDarkTheme(theme.colors.background);
-
-    const darkStyles = isDark
-        ? {
-            card: { backgroundColor: 'rgba(255,255,255,0.08)', color: theme.colors.text } as React.CSSProperties,
-            modal: { backgroundColor: 'rgba(255,255,255,0.1)', color: theme.colors.text } as React.CSSProperties,
-            tableText: { color: theme.colors.text } as React.CSSProperties,
-            divider: 'rgba(255,255,255,0.1)',
-            noteTint: 'rgba(255,255,255,0.06)',
-            progressTrack: 'rgba(255,255,255,0.12)',
-            toggleOff: 'rgba(255,255,255,0.15)',
-            totalTint: 'rgba(255,255,255,0.08)',
-        }
-        : {
-            card: {} as React.CSSProperties,
-            modal: {} as React.CSSProperties,
-            tableText: {} as React.CSSProperties,
-            divider: '#e1e5e9',
-            noteTint: `${theme.colors.primary}12`,
-            progressTrack: '#e1e5e9',
-            toggleOff: '#d1d5db',
-            totalTint: `${theme.colors.primary}1a`,
-        };
-
     // Derived stats
+    // -----------------------------------------------------------------------
     const totalSesiones = sessions?.length ?? 0;
     const sesionsPagadas = balance?.paid_sessions ?? 0;
 
@@ -109,15 +63,16 @@ export default function ClientDetailPage() {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showSessionModal, setShowSessionModal] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
+    const [error, setError] = useState('');
 
     const handleTogglePayment = async (sessionId: string) => {
         try {
             await sessionsApi.togglePayment(sessionId);
             mutate(`/clients/${clientId}/sessions`);
             mutate(`/clients/${clientId}/payment-balance`);
-        } catch (error) {
-            console.error('Error toggling payment:', error);
-            alert('Error al actualizar el estado de pago');
+        } catch (err) {
+            console.error('Error toggling payment:', err);
+            setError('Error al actualizar el estado de pago');
         }
     };
 
@@ -126,9 +81,9 @@ export default function ClientDetailPage() {
         try {
             await clientsApi.delete(clientId);
             router.push(`/dashboard/clients?app_id=${appId}`);
-        } catch (error) {
-            console.error('Error deleting client:', error);
-            alert('Error al eliminar el cliente');
+        } catch (err) {
+            console.error('Error deleting client:', err);
+            setError('Error al eliminar el cliente');
         }
     };
 
@@ -223,13 +178,11 @@ export default function ClientDetailPage() {
                 STATS BAR
                 ============================================================ */}
             <div className="metrics-grid" style={{ marginBottom: '1.5rem' }}>
-                {/* Total Sesiones */}
                 <div className="metric-card">
                     <div className="metric-value">{totalSesiones}</div>
                     <div className="metric-label">Total Sesiones</div>
                 </div>
 
-                {/* Sesiones Pagadas */}
                 <div className="metric-card">
                     <div className="metric-value">{sesionsPagadas}</div>
                     <div className="metric-label">
@@ -240,7 +193,6 @@ export default function ClientDetailPage() {
                     </div>
                 </div>
 
-                {/* Estado badge */}
                 <div className="metric-card">
                     <div className="metric-value" style={{ fontSize: '1.5rem' }}>
                         <span style={{
@@ -414,9 +366,7 @@ export default function ClientDetailPage() {
                                                             '#9ca3af',
                                                         flexShrink: 0,
                                                     }} />
-                                                    {session.status === 'completed' ? 'Completada' :
-                                                     session.status === 'scheduled' ? 'Programada' :
-                                                     'Cancelada'}
+                                                    {SESSION_STATUS_LABELS[session.status] || session.status}
                                                 </span>
                                             </td>
 
@@ -499,13 +449,16 @@ export default function ClientDetailPage() {
                     Ver Calendario
                 </button>
                 <button
-                    className="btn"
+                    className="btn btn-danger"
                     onClick={handleDeleteClient}
-                    style={{ background: '#dc3545', color: 'white' }}
                 >
                     Eliminar Cliente
                 </button>
             </div>
+
+            {error && (
+                <p style={{ color: '#dc3545', marginTop: '1rem' }}>{error}</p>
+            )}
 
             {/* ============================================================
                 MODALS
@@ -514,8 +467,6 @@ export default function ClientDetailPage() {
                 <PaymentModal
                     clientId={clientId}
                     clientName={client.name}
-                    theme={theme}
-                    darkStyles={darkStyles}
                     onClose={() => setShowPaymentModal(false)}
                     onSuccess={() => {
                         mutate(`/clients/${clientId}/payment-balance`);
@@ -528,8 +479,6 @@ export default function ClientDetailPage() {
             {showSessionModal && selectedSession && (
                 <SessionDetailModal
                     session={selectedSession}
-                    theme={theme}
-                    darkStyles={darkStyles}
                     onClose={() => {
                         setShowSessionModal(false);
                         setSelectedSession(null);
@@ -539,240 +488,6 @@ export default function ClientDetailPage() {
                     }}
                 />
             )}
-        </div>
-    );
-}
-
-// ---------------------------------------------------------------------------
-// PaymentModal
-// ---------------------------------------------------------------------------
-
-interface DarkStyles {
-    card: React.CSSProperties;
-    modal: React.CSSProperties;
-    tableText: React.CSSProperties;
-    divider: string;
-    noteTint: string;
-    progressTrack: string;
-    toggleOff: string;
-    totalTint: string;
-}
-
-function PaymentModal({
-    clientId,
-    clientName,
-    theme,
-    darkStyles,
-    onClose,
-    onSuccess,
-}: {
-    clientId: string;
-    clientName: string;
-    theme: { colors: { primary: string; secondary: string; background: string; text: string } };
-    darkStyles: DarkStyles;
-    onClose: () => void;
-    onSuccess: () => void;
-}) {
-    const [sessionsPaid, setSessionsPaid] = useState(1);
-    const [amountPerSession, setAmountPerSession] = useState(50000);
-    const [notes, setNotes] = useState('');
-    const [loading, setLoading] = useState(false);
-
-    const totalAmount = sessionsPaid * amountPerSession;
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            await clientsApi.registerPayment(clientId, {
-                sessions_paid: sessionsPaid,
-                amount_cop: totalAmount,
-                notes: notes || undefined,
-            });
-            onSuccess();
-        } catch (error) {
-            console.error('Error registering payment:', error);
-            alert('Error al registrar el pago');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} style={darkStyles.modal}>
-                <div className="modal-header">
-                    <h3 className="modal-title" style={{ color: theme.colors.text }}>
-                        Registrar Pago — {clientName}
-                    </h3>
-                    <button className="modal-close" onClick={onClose}>&times;</button>
-                </div>
-
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label className="form-label">Número de sesiones</label>
-                        <input
-                            type="number"
-                            className="form-input"
-                            min="1"
-                            value={sessionsPaid}
-                            onChange={(e) => setSessionsPaid(parseInt(e.target.value) || 1)}
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Valor por sesión (COP)</label>
-                        <input
-                            type="number"
-                            className="form-input"
-                            min="0"
-                            step="1000"
-                            value={amountPerSession}
-                            onChange={(e) => setAmountPerSession(parseInt(e.target.value) || 0)}
-                            required
-                        />
-                    </div>
-
-                    {/* Total summary */}
-                    <div style={{
-                        background: darkStyles.totalTint,
-                        padding: '0.75rem 1rem',
-                        borderRadius: '8px',
-                        marginBottom: '1.25rem',
-                    }}>
-                        <p style={{ fontSize: '1.125rem', fontWeight: 700, color: theme.colors.text, margin: 0 }}>
-                            Total: ${totalAmount.toLocaleString('es-CO')} COP
-                        </p>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Notas (opcional)</label>
-                        <textarea
-                            className="form-textarea"
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            rows={2}
-                        />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
-                            Cancelar
-                        </button>
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            disabled={loading}
-                            style={{ flex: 1, opacity: loading ? 0.5 : 1 }}
-                        >
-                            {loading ? 'Guardando...' : 'Registrar Pago'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-// ---------------------------------------------------------------------------
-// SessionDetailModal
-// ---------------------------------------------------------------------------
-
-function SessionDetailModal({
-    session,
-    theme,
-    darkStyles,
-    onClose,
-    onUpdate,
-}: {
-    session: TrainingSession;
-    theme: { colors: { primary: string; secondary: string; background: string; text: string } };
-    darkStyles: DarkStyles;
-    onClose: () => void;
-    onUpdate: () => void;
-}) {
-    const [sessionDoc, setSessionDoc] = useState(session.session_doc || '');
-    const [loading, setLoading] = useState(false);
-
-    const handleSave = async () => {
-        setLoading(true);
-        try {
-            await sessionsApi.update(session.id, { session_doc: sessionDoc });
-            onUpdate();
-            onClose();
-        } catch (error) {
-            console.error('Error updating session:', error);
-            alert('Error al actualizar la sesión');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const detailRows = [
-        { label: 'Fecha', value: formatDate(session.scheduled_at) },
-        { label: 'Duración', value: `${session.duration_minutes} minutos` },
-        {
-            label: 'Estado',
-            value: session.status === 'completed' ? 'Completada' :
-                   session.status === 'scheduled' ? 'Programada' : 'Cancelada',
-        },
-        { label: 'Pagado', value: session.is_paid ? 'Sí' : 'No' },
-    ];
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ ...darkStyles.modal, maxWidth: '600px' }}>
-                <div className="modal-header">
-                    <h3 className="modal-title" style={{ color: theme.colors.text }}>
-                        Detalles de la Sesión
-                    </h3>
-                    <button className="modal-close" onClick={onClose}>&times;</button>
-                </div>
-
-                {/* Detail rows */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                    {detailRows.map((row) => (
-                        <div key={row.label} style={{ display: 'flex', gap: '0.5rem', padding: '0.4rem 0' }}>
-                            <span style={{ color: theme.colors.secondary, minWidth: '80px' }}>{row.label}:</span>
-                            <span style={{ fontWeight: 600, color: theme.colors.text }}>{row.value}</span>
-                        </div>
-                    ))}
-                    {session.notes && (
-                        <div style={{ marginTop: '0.5rem' }}>
-                            <span style={{ color: theme.colors.secondary }}>Notas:</span>
-                            <p style={{ fontSize: '0.875rem', color: theme.colors.text, marginTop: '0.25rem', marginBottom: 0 }}>
-                                {session.notes}
-                            </p>
-                        </div>
-                    )}
-                </div>
-
-                <div className="form-group">
-                    <label className="form-label">Documentación de la Sesión</label>
-                    <textarea
-                        className="form-textarea"
-                        value={sessionDoc}
-                        onChange={(e) => setSessionDoc(e.target.value)}
-                        rows={6}
-                        placeholder="Ej: Ejercicios realizados, observaciones, progreso..."
-                    />
-                </div>
-
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
-                        Cerrar
-                    </button>
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleSave}
-                        disabled={loading}
-                        style={{ flex: 1, opacity: loading ? 0.5 : 1 }}
-                    >
-                        {loading ? 'Guardando...' : 'Guardar'}
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }

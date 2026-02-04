@@ -74,6 +74,16 @@ h6 {
   color: white;
 }
 
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
 /* Card styles */
 .card {
   background: white;

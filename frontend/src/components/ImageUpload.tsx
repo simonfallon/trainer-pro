@@ -63,7 +63,7 @@ export function ImageUpload({ onImageSelected, currentImage, label = "Upload Ima
                         borderBottomLeftRadius: '6px',
                         borderBottomRightRadius: '6px'
                     }}>
-                        Click to change
+                        Haz clic para cambiar
                     </div>
                 )}
             </div>

@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
 import { locationsApi } from '@/lib/api';
 import { getGoogleMapsUrl } from '@/lib/locationUtils';
 import { Location, LocationCreateInput } from '@/types';
 import { LocationForm } from '@/components/locations/LocationForm';
+import { getLocationTypeLabel } from '@/lib/labels';
+import { useDashboardApp } from '@/hooks/useDashboardApp';
 
 export default function LocationsPage() {
-    const searchParams = useSearchParams();
-    const appId = searchParams.get('app_id');
-    const trainerId = searchParams.get('trainer_id') || '';
+    const { app } = useDashboardApp();
+    const trainerId = app.trainer_id;
 
     const [showForm, setShowForm] = useState(false);
     const [editingLocation, setEditingLocation] = useState<Location | undefined>();
@@ -21,26 +21,24 @@ export default function LocationsPage() {
         () => locationsApi.list(trainerId)
     );
 
-    const handleCreateLocation = async (data: LocationCreateInput) => {
-        // Convert undefined to null for Location type compatibility
-        await locationsApi.create({
-            ...data,
-            address_line1: data.address_line1 ?? null,
-            address_line2: data.address_line2 ?? null,
-            city: data.city ?? null,
-            region: data.region ?? null,
-            postal_code: data.postal_code ?? null,
-            country: data.country ?? null,
-            latitude: data.latitude ?? null,
-            longitude: data.longitude ?? null,
-            google_place_id: data.google_place_id ?? null,
-        } as any);
-        mutate(`/locations-${trainerId}`);
-    };
-
-    const handleUpdateLocation = async (data: Partial<Location> & { id: string }) => {
-        const { id, ...updateData } = data;
-        await locationsApi.update(id, updateData);
+    const handleSave = async (data: LocationCreateInput | (Partial<Location> & { id: string })) => {
+        if ('id' in data) {
+            const { id, ...updateData } = data;
+            await locationsApi.update(id, updateData);
+        } else {
+            await locationsApi.create({
+                ...data,
+                address_line1: data.address_line1 ?? null,
+                address_line2: data.address_line2 ?? null,
+                city: data.city ?? null,
+                region: data.region ?? null,
+                postal_code: data.postal_code ?? null,
+                country: data.country ?? null,
+                latitude: data.latitude ?? null,
+                longitude: data.longitude ?? null,
+                google_place_id: data.google_place_id ?? null,
+            } as Omit<Location, 'id' | 'created_at' | 'updated_at'>);
+        }
         mutate(`/locations-${trainerId}`);
     };
 
@@ -81,18 +79,6 @@ export default function LocationsPage() {
             </div>
         );
     }
-
-
-    const getLocationTypeLabel = (type: string) => {
-        const labels: Record<string, string> = {
-            gym: 'Gimnasio',
-            track: 'Pista/Cancha',
-            trainer_base: 'Base del Entrenador',
-            client_home: 'Casa del Cliente',
-            other: 'Otro',
-        };
-        return labels[type] || type;
-    };
 
     return (
         <div>
@@ -167,16 +153,9 @@ export default function LocationsPage() {
                                     Editar
                                 </button>
                                 <button
-                                    className="btn"
+                                    className="btn btn-danger"
                                     onClick={() => handleDeleteLocation(location.id)}
-                                    style={{
-                                        flex: 1,
-                                        fontSize: '0.875rem',
-                                        padding: '0.5rem',
-                                        backgroundColor: '#dc3545',
-                                        color: 'white',
-                                        borderColor: '#dc3545',
-                                    }}
+                                    style={{ flex: 1, fontSize: '0.875rem', padding: '0.5rem' }}
                                 >
                                     Eliminar
                                 </button>
@@ -191,7 +170,7 @@ export default function LocationsPage() {
                     location={editingLocation}
                     trainerId={trainerId}
                     onClose={closeForm}
-                    onSave={editingLocation ? handleUpdateLocation as any : handleCreateLocation as any}
+                    onSave={handleSave}
                 />
             )}
         </div>

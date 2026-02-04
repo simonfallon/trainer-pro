@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { TrainingSession, Client, Location } from '@/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { SESSION_STATUS_LABELS } from '@/lib/labels';
 
 interface SessionModalProps {
     mode: 'create' | 'view';
@@ -150,7 +151,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                                 </>
                             ) : (
                                 <div style={{ color: session.status === 'completed' ? '#28a745' : '#dc3545', fontWeight: 600 }}>
-                                    Sesión {session.status === 'completed' ? 'Completada' : 'Cancelada'}
+                                    Sesión {SESSION_STATUS_LABELS[session.status] || session.status}
                                 </div>
                             )}
                         </div>

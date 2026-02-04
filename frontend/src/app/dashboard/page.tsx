@@ -1,71 +1,26 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { sessionsApi, appsApi, trainersApi } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { sessionsApi } from '@/lib/api';
 import { getThemeById } from '@/themes';
-import type { SessionStats, TrainerApp, Trainer } from '@/types';
+import { useDashboardApp } from '@/hooks/useDashboardApp';
+import type { SessionStats } from '@/types';
 
-function DashboardHomeContent() {
-    const searchParams = useSearchParams();
-    const appId = searchParams.get('app_id');
+export default function DashboardHomePage() {
+    const { app, trainer } = useDashboardApp();
     const [stats, setStats] = useState<SessionStats | null>(null);
-    const [app, setApp] = useState<TrainerApp | null>(null);
-    const [trainer, setTrainer] = useState<Trainer | null>(null);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!appId) {
-            setLoading(false);
-            return;
-        }
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        const fetchData = async () => {
-            try {
-                const appData = await appsApi.get(appId);
-                setApp(appData);
-
-                const trainerData = await trainersApi.get(appData.trainer_id);
-                setTrainer(trainerData);
-
-                // Get stats for current month
-                const now = new Date();
-                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-                const statsData = await sessionsApi.getStats(
-                    appData.trainer_id,
-                    startOfMonth.toISOString(),
-                    endOfMonth.toISOString()
-                );
-                setStats(statsData);
-            } catch (error) {
-                console.error('Failed to load dashboard data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [appId]);
-
-    if (loading) {
-        return <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando tablero...</div>;
-    }
-
-    if (!appId || !app) {
-        return (
-            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-                <h2>No se encontró la aplicación</h2>
-                <p style={{ color: 'var(--color-secondary)', marginBottom: '1.5rem' }}>
-                    Por favor, completa la configuración de tu perfil primero.
-                </p>
-                <a href="/" className="btn btn-primary">
-                    Ir a Configuración
-                </a>
-            </div>
-        );
-    }
+        sessionsApi.getStats(
+            app.trainer_id,
+            startOfMonth.toISOString(),
+            endOfMonth.toISOString()
+        ).then(setStats).catch(console.error);
+    }, [app.trainer_id]);
 
     return (
         <div className="fade-in">
@@ -107,7 +62,7 @@ function DashboardHomeContent() {
                         <div style={{ fontSize: '0.875rem', color: 'var(--color-secondary)', marginBottom: '0.25rem' }}>
                             Nombre de la Aplicación
                         </div>
-                        <div style={{ fontWeight: 600 }}>{app?.name}</div>
+                        <div style={{ fontWeight: 600 }}>{app.name}</div>
                     </div>
                     <div>
                         <div style={{ fontSize: '0.875rem', color: 'var(--color-secondary)', marginBottom: '0.25rem' }}>
@@ -118,10 +73,10 @@ function DashboardHomeContent() {
                                 width: '24px',
                                 height: '24px',
                                 borderRadius: '50%',
-                                background: app ? `linear-gradient(135deg, ${app.theme_config.colors.primary} 0%, ${app.theme_config.colors.secondary} 100%)` : '#ccc',
+                                background: `linear-gradient(135deg, ${app.theme_config.colors.primary} 0%, ${app.theme_config.colors.secondary} 100%)`,
                             }} />
                             <span style={{ fontWeight: 600 }}>
-                                {getThemeById(app?.theme_id || '')?.name || app?.theme_id.replace(/-/g, ' ')}
+                                {getThemeById(app.theme_id)?.name || app.theme_id.replace(/-/g, ' ')}
                             </span>
                         </div>
                     </div>
@@ -144,22 +99,14 @@ function DashboardHomeContent() {
             <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Acciones Rápidas</h3>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <a href={`/dashboard/clients?app_id=${appId}`} className="btn btn-primary">
+                    <a href={`/dashboard/clients?app_id=${app.id}`} className="btn btn-primary">
                         Agregar Nuevo Cliente
                     </a>
-                    <a href={`/dashboard/calendar?app_id=${appId}`} className="btn btn-secondary">
+                    <a href={`/dashboard/calendar?app_id=${app.id}`} className="btn btn-secondary">
                         Programar Sesión
                     </a>
                 </div>
             </div>
         </div>
-    );
-}
-
-export default function DashboardHomePage() {
-    return (
-        <Suspense fallback={<div style={{ textAlign: 'center', padding: '3rem' }}>Cargando...</div>}>
-            <DashboardHomeContent />
-        </Suspense>
     );
 }
