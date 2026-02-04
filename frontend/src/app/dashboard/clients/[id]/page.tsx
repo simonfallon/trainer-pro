@@ -4,7 +4,37 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
 import { clientsApi, sessionsApi } from '@/lib/api';
+import { useTheme } from '@/components/ThemeProvider';
 import type { Client, TrainingSession, PaymentBalance } from '@/types';
+
+// ---------------------------------------------------------------------------
+// Helpers (file-scope, pure, no React dependency)
+// ---------------------------------------------------------------------------
+
+function isDarkTheme(bgHex: string): boolean {
+    const hex = bgHex.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16) / 255;
+    const g = parseInt(hex.substring(2, 4), 16) / 255;
+    const b = parseInt(hex.substring(4, 6), 16) / 255;
+
+    const linearize = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+    const L = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
+    return L < 0.18;
+}
+
+function formatDate(dateString: string): string {
+    return new Date(dateString).toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export default function ClientDetailPage() {
     const params = useParams();
@@ -12,25 +42,70 @@ export default function ClientDetailPage() {
     const searchParams = useSearchParams();
     const clientId = params.id as string;
     const appId = searchParams.get('app_id');
+    const { theme } = useTheme();
 
-    // Fetch client data
+    // -----------------------------------------------------------------------
+    // Data
+    // -----------------------------------------------------------------------
     const { data: client, error: clientError, isLoading: clientLoading } = useSWR<Client>(
         `/clients/${clientId}`,
         () => clientsApi.get(clientId)
     );
 
-    // Fetch client sessions
     const { data: sessions, isLoading: sessionsLoading } = useSWR<TrainingSession[]>(
         `/clients/${clientId}/sessions`,
         () => clientsApi.getSessions(clientId)
     );
 
-    // Fetch payment balance
     const { data: balance } = useSWR<PaymentBalance>(
         `/clients/${clientId}/payment-balance`,
         () => clientsApi.getPaymentBalance(clientId)
     );
 
+    // -----------------------------------------------------------------------
+    // Derived / dark-mode styles (computed during render — no effect, no memo)
+    // -----------------------------------------------------------------------
+    const isDark = isDarkTheme(theme.colors.background);
+
+    const darkStyles = isDark
+        ? {
+            card: { backgroundColor: 'rgba(255,255,255,0.08)', color: theme.colors.text } as React.CSSProperties,
+            modal: { backgroundColor: 'rgba(255,255,255,0.1)', color: theme.colors.text } as React.CSSProperties,
+            tableText: { color: theme.colors.text } as React.CSSProperties,
+            divider: 'rgba(255,255,255,0.1)',
+            noteTint: 'rgba(255,255,255,0.06)',
+            progressTrack: 'rgba(255,255,255,0.12)',
+            toggleOff: 'rgba(255,255,255,0.15)',
+            totalTint: 'rgba(255,255,255,0.08)',
+        }
+        : {
+            card: {} as React.CSSProperties,
+            modal: {} as React.CSSProperties,
+            tableText: {} as React.CSSProperties,
+            divider: '#e1e5e9',
+            noteTint: `${theme.colors.primary}12`,
+            progressTrack: '#e1e5e9',
+            toggleOff: '#d1d5db',
+            totalTint: `${theme.colors.primary}1a`,
+        };
+
+    // Derived stats
+    const totalSesiones = sessions?.length ?? 0;
+    const sesionsPagadas = balance?.paid_sessions ?? 0;
+
+    const statusBadge = balance?.has_positive_balance
+        ? { label: 'Prepagado', bg: theme.colors.primary, color: '#fff' }
+        : (balance?.unpaid_sessions ?? 0) > 0
+            ? { label: 'Pendiente', bg: '#f59e0b', color: '#fff' }
+            : { label: 'Al día', bg: '#22c55e', color: '#fff' };
+
+    const progressPercent = balance && balance.total_sessions > 0
+        ? (balance.paid_sessions / balance.total_sessions) * 100
+        : 0;
+
+    // -----------------------------------------------------------------------
+    // Handlers
+    // -----------------------------------------------------------------------
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showSessionModal, setShowSessionModal] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
@@ -38,7 +113,6 @@ export default function ClientDetailPage() {
     const handleTogglePayment = async (sessionId: string) => {
         try {
             await sessionsApi.togglePayment(sessionId);
-            // Revalidate both sessions and balance
             mutate(`/clients/${clientId}/sessions`);
             mutate(`/clients/${clientId}/payment-balance`);
         } catch (error) {
@@ -49,7 +123,6 @@ export default function ClientDetailPage() {
 
     const handleDeleteClient = async () => {
         if (!confirm(`¿Estás seguro de eliminar a ${client?.name}?`)) return;
-
         try {
             await clientsApi.delete(clientId);
             router.push(`/dashboard/clients?app_id=${appId}`);
@@ -59,237 +132,390 @@ export default function ClientDetailPage() {
         }
     };
 
+    // -----------------------------------------------------------------------
+    // Early returns
+    // -----------------------------------------------------------------------
     if (clientLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-lg">Cargando...</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+                <p style={{ fontSize: '1.125rem', color: theme.colors.secondary }}>Cargando...</p>
             </div>
         );
     }
 
     if (clientError || !client) {
         return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="text-lg text-red-600">Error al cargar el cliente</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+                <p style={{ fontSize: '1.125rem', color: '#dc3545' }}>Error al cargar el cliente</p>
             </div>
         );
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('es-CO', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
-
+    // -----------------------------------------------------------------------
+    // Render
+    // -----------------------------------------------------------------------
     return (
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-            {/* Header */}
-            <div className="mb-6">
+        <div className="fade-in">
+
+            {/* ============================================================
+                HERO BANNER
+                ============================================================ */}
+            <div style={{
+                background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.secondary} 100%)`,
+                borderRadius: '0 0 16px 16px',
+                padding: '1.25rem 1.5rem 1.5rem',
+                marginBottom: '1.5rem',
+            }}>
+                {/* Back button */}
                 <button
                     onClick={() => router.back()}
-                    className="text-blue-600 hover:text-blue-800 mb-4 flex items-center gap-2"
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'white',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        marginBottom: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        padding: 0,
+                        opacity: 0.85,
+                    }}
                 >
                     ← Volver
                 </button>
-                <h1 className="text-3xl font-bold text-gray-900">{client.name}</h1>
-            </div>
 
-            {/* Profile Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Profile Card */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <div className="flex flex-col items-center">
-                        <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                            {client.photo_url ? (
-                                <img src={client.photo_url} alt={client.name} className="w-24 h-24 rounded-full object-cover" />
-                            ) : (
-                                <span className="text-4xl text-gray-400">👤</span>
-                            )}
-                        </div>
-                        <h2 className="text-xl font-semibold mb-2">{client.name}</h2>
-                        <p className="text-gray-600">{client.phone}</p>
-                        {client.email && <p className="text-gray-600">{client.email}</p>}
-                    </div>
-                </div>
-
-                {/* Personal Info Card */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold mb-4">Información Personal</h3>
-                    <div className="space-y-2">
-                        {client.age && (
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Edad:</span>
-                                <span className="font-medium">{client.age} años</span>
-                            </div>
-                        )}
-                        {client.gender && (
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Género:</span>
-                                <span className="font-medium">{client.gender}</span>
-                            </div>
-                        )}
-                        {client.height_cm && (
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Altura:</span>
-                                <span className="font-medium">{client.height_cm} cm</span>
-                            </div>
-                        )}
-                        {client.weight_kg && (
-                            <div className="flex justify-between">
-                                <span className="text-gray-600">Peso:</span>
-                                <span className="font-medium">{client.weight_kg} kg</span>
-                            </div>
+                {/* Avatar + Name + Contact (compact row) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{
+                        width: '72px',
+                        height: '72px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        overflow: 'hidden',
+                    }}>
+                        {client.photo_url ? (
+                            <img src={client.photo_url} alt={client.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                            <span style={{ color: 'white', fontSize: '2rem', fontWeight: 700 }}>
+                                {client.name.charAt(0).toUpperCase()}
+                            </span>
                         )}
                     </div>
-                    {client.notes && (
-                        <div className="mt-4 pt-4 border-t">
-                            <p className="text-sm text-gray-600">{client.notes}</p>
-                        </div>
-                    )}
-                </div>
 
-                {/* Payment Balance Card */}
-                <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold mb-4">Estado de Pagos</h3>
-                    {balance ? (
-                        <div className="space-y-3">
-                            <div className={`p-3 rounded-lg ${balance.has_positive_balance ? 'bg-green-50' : balance.unpaid_sessions > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
-                                {balance.has_positive_balance ? (
-                                    <p className="text-green-700 font-medium">
-                                        {balance.prepaid_sessions} sesiones prepagadas
-                                    </p>
-                                ) : balance.unpaid_sessions > 0 ? (
-                                    <p className="text-red-700 font-medium">
-                                        {balance.unpaid_sessions} sesiones pendientes de pago
-                                    </p>
-                                ) : (
-                                    <p className="text-gray-700 font-medium">
-                                        Todos los pagos al día
-                                    </p>
-                                )}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                                <p>Total sesiones: {balance.total_sessions}</p>
-                                <p>Pagadas: {balance.paid_sessions}</p>
-                            </div>
-                            <button
-                                onClick={() => setShowPaymentModal(true)}
-                                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
-                            >
-                                Registrar Pagos
-                            </button>
-                        </div>
-                    ) : (
-                        <p className="text-gray-500">Cargando...</p>
-                    )}
+                    <div>
+                        <h1 style={{ color: 'white', fontSize: '1.5rem', margin: 0, fontWeight: 700 }}>
+                            {client.name}
+                        </h1>
+                        <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.875rem', margin: '0.2rem 0 0' }}>
+                            {client.phone}{client.email ? ` · ${client.email}` : ''}
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            {/* Sessions Table */}
-            <div className="bg-white rounded-lg shadow overflow-hidden mb-8">
-                <div className="px-6 py-4 border-b border-gray-200">
-                    <h3 className="text-lg font-semibold">Sesiones de Entrenamiento</h3>
+            {/* ============================================================
+                STATS BAR
+                ============================================================ */}
+            <div className="metrics-grid" style={{ marginBottom: '1.5rem' }}>
+                {/* Total Sesiones */}
+                <div className="metric-card">
+                    <div className="metric-value">{totalSesiones}</div>
+                    <div className="metric-label">Total Sesiones</div>
                 </div>
-                <div className="overflow-x-auto">
-                    {sessionsLoading ? (
-                        <div className="p-6 text-center">Cargando sesiones...</div>
-                    ) : sessions && sessions.length > 0 ? (
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Fecha
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Estado
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Duración
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Pagado
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Acciones
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {sessions.map((session) => (
-                                    <tr key={session.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {formatDate(session.scheduled_at)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${session.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                                session.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                                    'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                {session.status === 'completed' ? 'Completada' :
-                                                    session.status === 'scheduled' ? 'Programada' :
-                                                        'Cancelada'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {session.duration_minutes} min
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                onClick={() => handleTogglePayment(session.id)}
-                                                className={`text-2xl ${session.is_paid ? 'text-green-600' : 'text-red-600'} hover:opacity-70`}
-                                                title={session.is_paid ? 'Marcar como no pagado' : 'Marcar como pagado'}
-                                            >
-                                                {session.is_paid ? '✓' : '✗'}
-                                            </button>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedSession(session);
-                                                    setShowSessionModal(true);
-                                                }}
-                                                className="text-blue-600 hover:text-blue-800"
-                                            >
-                                                Más Info
-                                            </button>
-                                        </td>
+
+                {/* Sesiones Pagadas */}
+                <div className="metric-card">
+                    <div className="metric-value">{sesionsPagadas}</div>
+                    <div className="metric-label">
+                        Sesiones Pagadas
+                        <span style={{ opacity: 0.7, fontSize: '0.75rem', display: 'block', marginTop: '0.15rem' }}>
+                            de {totalSesiones}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Estado badge */}
+                <div className="metric-card">
+                    <div className="metric-value" style={{ fontSize: '1.5rem' }}>
+                        <span style={{
+                            display: 'inline-block',
+                            background: statusBadge.bg,
+                            color: statusBadge.color,
+                            padding: '0.3rem 0.85rem',
+                            borderRadius: '999px',
+                            fontSize: '0.875rem',
+                            fontWeight: 600,
+                        }}>
+                            {statusBadge.label}
+                        </span>
+                    </div>
+                    <div className="metric-label">Estado</div>
+                </div>
+            </div>
+
+            {/* ============================================================
+                TWO-COLUMN BODY
+                ============================================================ */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                gap: '1.5rem',
+                marginBottom: '1.5rem',
+            }}>
+                {/* --------------------------------------------------------
+                    LEFT COLUMN
+                    -------------------------------------------------------- */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                    {/* Información Personal */}
+                    <div className="card" style={darkStyles.card}>
+                        <h3 style={{ color: theme.colors.text, marginBottom: '1rem', fontSize: '1.125rem' }}>
+                            Información Personal
+                        </h3>
+                        {([
+                            client.age != null && { label: 'Edad', value: `${client.age} años` },
+                            client.gender && { label: 'Género', value: client.gender },
+                            client.height_cm != null && { label: 'Altura', value: `${client.height_cm} cm` },
+                            client.weight_kg != null && { label: 'Peso', value: `${client.weight_kg} kg` },
+                        ].filter(Boolean) as { label: string; value: string }[]).map((row) => (
+                            <div key={row.label} style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '0.55rem 0',
+                                borderBottom: `1px solid ${darkStyles.divider}`,
+                            }}>
+                                <span style={{ color: theme.colors.secondary, fontSize: '0.9rem' }}>{row.label}</span>
+                                <span style={{ fontWeight: 600, color: theme.colors.text }}>{row.value}</span>
+                            </div>
+                        ))}
+
+                        {client.notes && (
+                            <div style={{
+                                marginTop: '1rem',
+                                padding: '0.75rem',
+                                borderRadius: '8px',
+                                background: darkStyles.noteTint,
+                            }}>
+                                <p style={{ fontSize: '0.875rem', color: theme.colors.text, margin: 0, lineHeight: 1.5 }}>
+                                    {client.notes}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Estado de Pagos */}
+                    <div className="card" style={darkStyles.card}>
+                        <h3 style={{ color: theme.colors.text, marginBottom: '0.75rem', fontSize: '1.125rem' }}>
+                            Estado de Pagos
+                        </h3>
+
+                        {balance ? (
+                            <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                                    <span style={{ color: theme.colors.secondary, fontSize: '0.85rem' }}>
+                                        Total: {balance.total_sessions}
+                                    </span>
+                                    <span style={{ color: theme.colors.secondary, fontSize: '0.85rem' }}>
+                                        Pagadas: {balance.paid_sessions}
+                                    </span>
+                                </div>
+
+                                {/* Progress bar */}
+                                <div style={{
+                                    height: '8px',
+                                    borderRadius: '999px',
+                                    background: darkStyles.progressTrack,
+                                    marginBottom: '1rem',
+                                    overflow: 'hidden',
+                                }}>
+                                    <div style={{
+                                        height: '100%',
+                                        width: `${progressPercent}%`,
+                                        background: theme.colors.primary,
+                                        borderRadius: '999px',
+                                        transition: 'width 0.3s ease',
+                                    }} />
+                                </div>
+
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => setShowPaymentModal(true)}
+                                    style={{ width: '100%' }}
+                                >
+                                    Registrar Pagos
+                                </button>
+                            </>
+                        ) : (
+                            <p style={{ color: theme.colors.secondary, fontSize: '0.875rem' }}>Cargando...</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* --------------------------------------------------------
+                    RIGHT COLUMN — Sessions Table
+                    -------------------------------------------------------- */}
+                <div className="card" style={{ ...darkStyles.card, padding: 0, overflow: 'hidden' }}>
+                    <div style={{
+                        padding: '1rem 1.5rem',
+                        borderBottom: `1px solid ${darkStyles.divider}`,
+                    }}>
+                        <h3 style={{ color: theme.colors.text, fontSize: '1.125rem', margin: 0 }}>
+                            Sesiones de Entrenamiento
+                        </h3>
+                    </div>
+
+                    <div style={{ overflowX: 'auto' }}>
+                        {sessionsLoading ? (
+                            <p style={{ padding: '1.5rem', textAlign: 'center', color: theme.colors.secondary }}>
+                                Cargando sesiones...
+                            </p>
+                        ) : sessions && sessions.length > 0 ? (
+                            <table className="table" style={{ ...darkStyles.tableText, margin: 0 }}>
+                                <thead>
+                                    <tr style={{ borderBottom: `1px solid ${darkStyles.divider}` }}>
+                                        <th style={{ color: theme.colors.secondary }}>Fecha</th>
+                                        <th style={{ color: theme.colors.secondary }}>Estado</th>
+                                        <th style={{ color: theme.colors.secondary }}>Duración</th>
+                                        <th style={{ color: theme.colors.secondary }}>Pagado</th>
+                                        <th style={{ color: theme.colors.secondary }}>Acciones</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    ) : (
-                        <div className="p-6 text-center text-gray-500">
-                            No hay sesiones registradas
-                        </div>
-                    )}
+                                </thead>
+                                <tbody>
+                                    {sessions.map((session) => (
+                                        <tr key={session.id} style={{ borderBottom: `1px solid ${darkStyles.divider}` }}>
+                                            <td style={{ fontSize: '0.85rem', color: theme.colors.text }}>
+                                                {formatDate(session.scheduled_at)}
+                                            </td>
+
+                                            {/* Status dot + label */}
+                                            <td>
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 600,
+                                                    color: theme.colors.text,
+                                                }}>
+                                                    <span style={{
+                                                        width: '10px',
+                                                        height: '10px',
+                                                        borderRadius: '50%',
+                                                        background:
+                                                            session.status === 'completed' ? '#22c55e' :
+                                                            session.status === 'scheduled' ? theme.colors.primary :
+                                                            '#9ca3af',
+                                                        flexShrink: 0,
+                                                    }} />
+                                                    {session.status === 'completed' ? 'Completada' :
+                                                     session.status === 'scheduled' ? 'Programada' :
+                                                     'Cancelada'}
+                                                </span>
+                                            </td>
+
+                                            <td style={{ fontSize: '0.85rem', color: theme.colors.text }}>
+                                                {session.duration_minutes} min
+                                            </td>
+
+                                            {/* Toggle switch */}
+                                            <td>
+                                                <button
+                                                    onClick={() => handleTogglePayment(session.id)}
+                                                    aria-label={session.is_paid ? 'Marcar como no pagado' : 'Marcar como pagado'}
+                                                    style={{
+                                                        position: 'relative',
+                                                        width: '44px',
+                                                        height: '24px',
+                                                        borderRadius: '12px',
+                                                        background: session.is_paid ? theme.colors.primary : darkStyles.toggleOff,
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        transition: 'background 0.2s',
+                                                        padding: 0,
+                                                    }}
+                                                >
+                                                    <span style={{
+                                                        position: 'absolute',
+                                                        top: '2px',
+                                                        left: session.is_paid ? '22px' : '2px',
+                                                        width: '20px',
+                                                        height: '20px',
+                                                        borderRadius: '50%',
+                                                        background: 'white',
+                                                        transition: 'left 0.2s',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                                    }} />
+                                                </button>
+                                            </td>
+
+                                            {/* Más Info */}
+                                            <td>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedSession(session);
+                                                        setShowSessionModal(true);
+                                                    }}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: 'none',
+                                                        color: theme.colors.primary,
+                                                        cursor: 'pointer',
+                                                        fontWeight: 600,
+                                                        fontSize: '0.875rem',
+                                                        padding: 0,
+                                                    }}
+                                                >
+                                                    Más Info
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <p style={{ padding: '2rem', textAlign: 'center', color: theme.colors.secondary }}>
+                                No hay sesiones registradas
+                            </p>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4 flex-wrap">
+            {/* ============================================================
+                BOTTOM ACTION ROW
+                ============================================================ */}
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                 <button
+                    className="btn btn-primary"
                     onClick={() => router.push(`/dashboard/calendar?app_id=${appId}&client=${clientId}`)}
-                    className="bg-green-600 text-white py-2 px-6 rounded-lg hover:bg-green-700 transition"
                 >
                     Ver Calendario
                 </button>
                 <button
+                    className="btn"
                     onClick={handleDeleteClient}
-                    className="bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition"
+                    style={{ background: '#dc3545', color: 'white' }}
                 >
                     Eliminar Cliente
                 </button>
             </div>
 
-            {/* Payment Modal */}
+            {/* ============================================================
+                MODALS
+                ============================================================ */}
             {showPaymentModal && (
                 <PaymentModal
                     clientId={clientId}
                     clientName={client.name}
+                    theme={theme}
+                    darkStyles={darkStyles}
                     onClose={() => setShowPaymentModal(false)}
                     onSuccess={() => {
                         mutate(`/clients/${clientId}/payment-balance`);
@@ -299,10 +525,11 @@ export default function ClientDetailPage() {
                 />
             )}
 
-            {/* Session Detail Modal */}
             {showSessionModal && selectedSession && (
                 <SessionDetailModal
                     session={selectedSession}
+                    theme={theme}
+                    darkStyles={darkStyles}
                     onClose={() => {
                         setShowSessionModal(false);
                         setSelectedSession(null);
@@ -316,10 +543,33 @@ export default function ClientDetailPage() {
     );
 }
 
-// Payment Modal Component
-function PaymentModal({ clientId, clientName, onClose, onSuccess }: {
+// ---------------------------------------------------------------------------
+// PaymentModal
+// ---------------------------------------------------------------------------
+
+interface DarkStyles {
+    card: React.CSSProperties;
+    modal: React.CSSProperties;
+    tableText: React.CSSProperties;
+    divider: string;
+    noteTint: string;
+    progressTrack: string;
+    toggleOff: string;
+    totalTint: string;
+}
+
+function PaymentModal({
+    clientId,
+    clientName,
+    theme,
+    darkStyles,
+    onClose,
+    onSuccess,
+}: {
     clientId: string;
     clientName: string;
+    theme: { colors: { primary: string; secondary: string; background: string; text: string } };
+    darkStyles: DarkStyles;
     onClose: () => void;
     onSuccess: () => void;
 }) {
@@ -333,7 +583,6 @@ function PaymentModal({ clientId, clientName, onClose, onSuccess }: {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-
         try {
             await clientsApi.registerPayment(clientId, {
                 sessions_paid: sessionsPaid,
@@ -350,67 +599,74 @@ function PaymentModal({ clientId, clientName, onClose, onSuccess }: {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                <h2 className="text-xl font-bold mb-4">Registrar Pago - {clientName}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Número de sesiones
-                        </label>
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={darkStyles.modal}>
+                <div className="modal-header">
+                    <h3 className="modal-title" style={{ color: theme.colors.text }}>
+                        Registrar Pago — {clientName}
+                    </h3>
+                    <button className="modal-close" onClick={onClose}>&times;</button>
+                </div>
+
+                <form onSubmit={handleSubmit}>
+                    <div className="form-group">
+                        <label className="form-label">Número de sesiones</label>
                         <input
                             type="number"
+                            className="form-input"
                             min="1"
                             value={sessionsPaid}
                             onChange={(e) => setSessionsPaid(parseInt(e.target.value) || 1)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2"
                             required
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Valor por sesión (COP)
-                        </label>
+
+                    <div className="form-group">
+                        <label className="form-label">Valor por sesión (COP)</label>
                         <input
                             type="number"
+                            className="form-input"
                             min="0"
                             step="1000"
                             value={amountPerSession}
                             onChange={(e) => setAmountPerSession(parseInt(e.target.value) || 0)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2"
                             required
                         />
                     </div>
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                        <p className="text-lg font-semibold text-blue-900">
+
+                    {/* Total summary */}
+                    <div style={{
+                        background: darkStyles.totalTint,
+                        padding: '0.75rem 1rem',
+                        borderRadius: '8px',
+                        marginBottom: '1.25rem',
+                    }}>
+                        <p style={{ fontSize: '1.125rem', fontWeight: 700, color: theme.colors.text, margin: 0 }}>
                             Total: ${totalAmount.toLocaleString('es-CO')} COP
                         </p>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Notas (opcional)
-                        </label>
+
+                    <div className="form-group">
+                        <label className="form-label">Notas (opcional)</label>
                         <textarea
+                            className="form-textarea"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2"
                             rows={2}
                         />
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                        >
-                            {loading ? 'Guardando...' : 'Registrar Pago'}
+
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                        <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
+                            Cancelar
                         </button>
                         <button
-                            type="button"
-                            onClick={onClose}
-                            className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition"
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={loading}
+                            style={{ flex: 1, opacity: loading ? 0.5 : 1 }}
                         >
-                            Cancelar
+                            {loading ? 'Guardando...' : 'Registrar Pago'}
                         </button>
                     </div>
                 </form>
@@ -419,9 +675,20 @@ function PaymentModal({ clientId, clientName, onClose, onSuccess }: {
     );
 }
 
-// Session Detail Modal Component
-function SessionDetailModal({ session, onClose, onUpdate }: {
+// ---------------------------------------------------------------------------
+// SessionDetailModal
+// ---------------------------------------------------------------------------
+
+function SessionDetailModal({
+    session,
+    theme,
+    darkStyles,
+    onClose,
+    onUpdate,
+}: {
     session: TrainingSession;
+    theme: { colors: { primary: string; secondary: string; background: string; text: string } };
+    darkStyles: DarkStyles;
     onClose: () => void;
     onUpdate: () => void;
 }) {
@@ -442,72 +709,67 @@ function SessionDetailModal({ session, onClose, onUpdate }: {
         }
     };
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('es-CO', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
+    const detailRows = [
+        { label: 'Fecha', value: formatDate(session.scheduled_at) },
+        { label: 'Duración', value: `${session.duration_minutes} minutos` },
+        {
+            label: 'Estado',
+            value: session.status === 'completed' ? 'Completada' :
+                   session.status === 'scheduled' ? 'Programada' : 'Cancelada',
+        },
+        { label: 'Pagado', value: session.is_paid ? 'Sí' : 'No' },
+    ];
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <h2 className="text-xl font-bold mb-4">Detalles de la Sesión</h2>
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ ...darkStyles.modal, maxWidth: '600px' }}>
+                <div className="modal-header">
+                    <h3 className="modal-title" style={{ color: theme.colors.text }}>
+                        Detalles de la Sesión
+                    </h3>
+                    <button className="modal-close" onClick={onClose}>&times;</button>
+                </div>
 
-                <div className="space-y-4 mb-6">
-                    <div>
-                        <span className="text-gray-600">Fecha:</span>
-                        <span className="ml-2 font-medium">{formatDate(session.scheduled_at)}</span>
-                    </div>
-                    <div>
-                        <span className="text-gray-600">Duración:</span>
-                        <span className="ml-2 font-medium">{session.duration_minutes} minutos</span>
-                    </div>
-                    <div>
-                        <span className="text-gray-600">Estado:</span>
-                        <span className="ml-2 font-medium capitalize">{session.status}</span>
-                    </div>
-                    <div>
-                        <span className="text-gray-600">Pagado:</span>
-                        <span className="ml-2 font-medium">{session.is_paid ? 'Sí' : 'No'}</span>
-                    </div>
+                {/* Detail rows */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                    {detailRows.map((row) => (
+                        <div key={row.label} style={{ display: 'flex', gap: '0.5rem', padding: '0.4rem 0' }}>
+                            <span style={{ color: theme.colors.secondary, minWidth: '80px' }}>{row.label}:</span>
+                            <span style={{ fontWeight: 600, color: theme.colors.text }}>{row.value}</span>
+                        </div>
+                    ))}
                     {session.notes && (
-                        <div>
-                            <span className="text-gray-600">Notas:</span>
-                            <p className="mt-1 text-sm">{session.notes}</p>
+                        <div style={{ marginTop: '0.5rem' }}>
+                            <span style={{ color: theme.colors.secondary }}>Notas:</span>
+                            <p style={{ fontSize: '0.875rem', color: theme.colors.text, marginTop: '0.25rem', marginBottom: 0 }}>
+                                {session.notes}
+                            </p>
                         </div>
                     )}
                 </div>
 
-                <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Documentación de la Sesión
-                    </label>
+                <div className="form-group">
+                    <label className="form-label">Documentación de la Sesión</label>
                     <textarea
+                        className="form-textarea"
                         value={sessionDoc}
                         onChange={(e) => setSessionDoc(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2"
                         rows={6}
                         placeholder="Ej: Ejercicios realizados, observaciones, progreso..."
                     />
                 </div>
 
-                <div className="flex gap-3">
-                    <button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                        {loading ? 'Guardando...' : 'Guardar'}
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                    <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
+                        Cerrar
                     </button>
                     <button
-                        onClick={onClose}
-                        className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-300 transition"
+                        className="btn btn-primary"
+                        onClick={handleSave}
+                        disabled={loading}
+                        style={{ flex: 1, opacity: loading ? 0.5 : 1 }}
                     >
-                        Cerrar
+                        {loading ? 'Guardando...' : 'Guardar'}
                     </button>
                 </div>
             </div>
