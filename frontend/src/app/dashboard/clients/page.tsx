@@ -206,7 +206,7 @@ function ClientsPageContent() {
                             {clients.map((client) => (
                                 <tr
                                     key={client.id}
-                                    onClick={() => router.push(`/dashboard/clients/${client.id}`)}
+                                    onClick={() => router.push(`/dashboard/clients/${client.id}?app_id=${appId}`)}
                                     style={{
                                         cursor: 'pointer',
                                         transition: 'background-color 0.2s',

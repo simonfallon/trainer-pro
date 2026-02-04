@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { appsApi, trainersApi } from '@/lib/api';
 import type { TrainerApp, Trainer } from '@/types';
@@ -14,10 +14,18 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     const [app, setApp] = useState<TrainerApp | null>(null);
     const [trainer, setTrainer] = useState<Trainer | null>(null);
     const [loading, setLoading] = useState(true);
+    const lastAppId = useRef<string | null>(null);
+
+    // Persist the last known valid app_id so child pages without it in the URL
+    // (e.g. /dashboard/clients/[id]) don't break the tab hrefs
+    if (appId && appId !== 'null') {
+        lastAppId.current = appId;
+    }
+    const effectiveAppId = appId && appId !== 'null' ? appId : lastAppId.current;
 
     useEffect(() => {
-        if (appId && appId !== 'null') {
-            appsApi.get(appId)
+        if (effectiveAppId) {
+            appsApi.get(effectiveAppId)
                 .then(async (appData) => {
                     setApp(appData);
                     // Fetch trainer
@@ -35,7 +43,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         } else {
             setLoading(false);
         }
-    }, [appId]);
+    }, [effectiveAppId]);
 
     if (loading) {
         return (
@@ -62,10 +70,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     }
 
     const tabs = [
-        { href: `/dashboard?app_id=${appId}`, label: 'Inicio', exact: true },
-        { href: `/dashboard/clients?app_id=${appId}`, label: 'Clientes' },
-        { href: `/dashboard/locations?app_id=${appId}&trainer_id=${app.trainer_id}`, label: 'Ubicaciones' },
-        { href: `/dashboard/calendar?app_id=${appId}`, label: 'Calendario' },
+        { href: `/dashboard?app_id=${effectiveAppId}`, label: 'Inicio', exact: true },
+        { href: `/dashboard/clients?app_id=${effectiveAppId}`, label: 'Clientes' },
+        { href: `/dashboard/locations?app_id=${effectiveAppId}&trainer_id=${app.trainer_id}`, label: 'Ubicaciones' },
+        { href: `/dashboard/calendar?app_id=${effectiveAppId}`, label: 'Calendario' },
     ];
 
     const isActive = (href: string, exact = false) => {

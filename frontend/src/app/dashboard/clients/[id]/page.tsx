@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
 import { clientsApi, sessionsApi } from '@/lib/api';
@@ -9,7 +9,9 @@ import type { Client, TrainingSession, PaymentBalance } from '@/types';
 export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const clientId = params.id as string;
+    const appId = searchParams.get('app_id');
 
     // Fetch client data
     const { data: client, error: clientError, isLoading: clientLoading } = useSWR<Client>(
@@ -50,7 +52,7 @@ export default function ClientDetailPage() {
 
         try {
             await clientsApi.delete(clientId);
-            router.push('/dashboard/clients');
+            router.push(`/dashboard/clients?app_id=${appId}`);
         } catch (error) {
             console.error('Error deleting client:', error);
             alert('Error al eliminar el cliente');
@@ -270,7 +272,7 @@ export default function ClientDetailPage() {
             {/* Action Buttons */}
             <div className="flex gap-4 flex-wrap">
                 <button
-                    onClick={() => router.push(`/dashboard/calendar?client=${clientId}`)}
+                    onClick={() => router.push(`/dashboard/calendar?app_id=${appId}&client=${clientId}`)}
                     className="bg-green-600 text-white py-2 px-6 rounded-lg hover:bg-green-700 transition"
                 >
                     Ver Calendario
