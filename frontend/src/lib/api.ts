@@ -216,4 +216,16 @@ export const devAuthApi = {
         }>('/dev/login', {
             method: 'POST',
         }),
+    loginDiscipline: (discipline: 'bmx' | 'physio') =>
+        fetchAPI<{
+            trainer_id: number;
+            email: string;
+            name: string;
+            is_new_user: boolean;
+            has_app: boolean;
+            app_id?: number;
+            app_name?: string;
+        }>(`/dev/login/${discipline}`, {
+            method: 'POST',
+        }),
 };

@@ -26,6 +26,7 @@ class Trainer(Base):
     google_access_token: Mapped[str | None] = mapped_column(String, nullable=True)
     token_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    discipline_type: Mapped[str] = mapped_column(String(50), nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

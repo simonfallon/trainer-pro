@@ -1,8 +1,9 @@
 """
 Seed test data for development and E2E testing.
 
-This script creates a fixed set of test data with predictable UUIDs
-to enable consistent agent E2E testing.
+This script creates TWO complete test datasets:
+1. BMX Trainer with BMX-specific data
+2. Physio Trainer with Physio-specific data
 
 IMPORTANT: This is for DEVELOPMENT ONLY.
 """
@@ -15,7 +16,7 @@ from pathlib import Path
 # Add parent directory to path to import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from app.database import async_session_maker
 from app.models.trainer import Trainer
 from app.models.app import TrainerApp
@@ -27,193 +28,266 @@ from app.models.payment import Payment
 from app.models.exercise_template import ExerciseTemplate
 
 
-# Fixed integer IDs for consistent testing
-TRAINER_ID = 1
-APP_ID = 1
-LOCATION_IDS = {
-    "gym": 1,
-    "track": 2,
-    "home": 3,
-}
-CLIENT_IDS = {
-    "client_a": 1,
-    "client_b": 2,
-    "client_c": 3,
-    "client_d": 4,
-}
-
-
 async def seed_data():
     """Seed test data (idempotent - safe to run multiple times)."""
     async with async_session_maker() as db:
         print("🌱 Starting data seeding...")
         
-        # 1. Create Trainer
-        result = await db.execute(select(Trainer).where(Trainer.id == TRAINER_ID))
-        trainer = result.scalar_one_or_none()
+        # Clean up all existing data
+        print("  Cleaning up existing data...")
+        await db.execute(delete(Payment))
+        await db.execute(delete(TrainingSession))
+        await db.execute(delete(SessionGroup))
+        await db.execute(delete(ExerciseTemplate))
+        await db.execute(delete(Client))
+        await db.execute(delete(Location))
+        await db.execute(delete(TrainerApp))
+        await db.execute(delete(Trainer))
+        await db.flush()
         
-        if not trainer:
-            print(f"  Creating test trainer (ID: {TRAINER_ID})...")
-            trainer = Trainer(
-                id=TRAINER_ID,
-                name="Test Trainer",
-                email="test@trainer.dev",
-                phone="+57 300 123 4567",
-                google_id="test_google_id",
-            )
-            db.add(trainer)
-            await db.flush()
-        else:
-            print(f"  ✓ Trainer already exists (ID: {TRAINER_ID})")
+        # Base date: Today at 00:00:00
+        now = datetime.now()
+        today = datetime(now.year, now.month, now.day)
         
-        # 2. Create TrainerApp
-        result = await db.execute(select(TrainerApp).where(TrainerApp.id == APP_ID))
-        app = result.scalar_one_or_none()
+        # ============================================================
+        # BMX TRAINER DATASET
+        # ============================================================
+        print("\n📦 Creating BMX Trainer dataset...")
         
-        if not app:
-            print(f"  Creating test app (ID: {APP_ID})...")
-            app = TrainerApp(
-                id=APP_ID,
-                trainer_id=TRAINER_ID,
-                name="Test Training App",
-                theme_id="bmx",
-                theme_config={
-                    "colors": {
-                        "primary": "#2563eb",
-                        "secondary": "#64748b",
-                        "background": "#ffffff",
-                        "text": "#1e293b"
-                    },
-                    "fonts": {
-                        "heading": "Inter",
-                        "body": "Inter"
-                    }
+        bmx_trainer = Trainer(
+            name="BMX Trainer",
+            email="bmx@test.com",
+            phone="+57 300 111 1111",
+            discipline_type="bmx",
+            google_id="bmx_google_id",
+        )
+        db.add(bmx_trainer)
+        await db.flush()
+        print(f"  ✓ Created BMX trainer (ID: {bmx_trainer.id})")
+        
+        bmx_app = TrainerApp(
+            trainer_id=bmx_trainer.id,
+            name="BMX Pro Training",
+            theme_id="bmx",
+            theme_config={
+                "colors": {
+                    "primary": "#ea580c",
+                    "secondary": "#dc2626",
+                    "background": "#ffffff",
+                    "text": "#1e293b"
+                },
+                "fonts": {
+                    "heading": "Inter",
+                    "body": "Inter"
                 }
+            }
+        )
+        db.add(bmx_app)
+        await db.flush()
+        print(f"  ✓ Created BMX app (ID: {bmx_app.id})")
+        
+        # BMX Locations
+        bmx_track = Location(
+            trainer_id=bmx_trainer.id,
+            name="Pista Motocross Road Track Guarne",
+            type="track",
+            address_line1="Guarne, Antioquia",
+            city="Guarne",
+            region="Antioquia",
+            country="Colombia",
+            latitude=6.243704,
+            longitude=-75.4371669,
+            google_place_id="ChIJp-f-Q0onRo4RjE1ExuY43Fc",
+        )
+        db.add(bmx_track)
+        await db.flush()
+        print(f"  ✓ Created BMX location")
+        
+        # BMX Clients
+        bmx_clients = []
+        for i, (name, phone) in enumerate([
+            ("Santiago Ramírez", "+57 301 111 1111"),
+            ("Valentina Torres", "+57 302 222 2222"),
+            ("Mateo Gómez", "+57 303 333 3333"),
+        ]):
+            client = Client(
+                trainer_id=bmx_trainer.id,
+                name=name,
+                phone=phone,
+                default_location_id=bmx_track.id,
             )
-            db.add(app)
-            await db.flush()
-        else:
-            print(f"  ✓ App already exists (ID: {APP_ID})")
+            db.add(client)
+            bmx_clients.append(client)
+        await db.flush()
+        print(f"  ✓ Created {len(bmx_clients)} BMX clients")
         
-        # 3. Create Locations
-        locations_created = 0
-        locations = [
+        # BMX Exercise Templates
+        bmx_templates = [
             {
-                "id": LOCATION_IDS["gym"],
-                "name": "Pista Motocross Road Track Guarne",
-                "type": "track",
-                "address_line1": "Guarne, Antioquia",
-                "city": "Guarne",
-                "region": "Antioquia",
-                "country": "Colombia",
-                "latitude": 6.243704,
-                "longitude": -75.4371669,
-                "google_place_id": "ChIJp-f-Q0onRo4RjE1ExuY43Fc",
+                "name": "Saltos técnicos",
+                "discipline_type": "bmx",
+                "field_schema": {
+                    "runs": {"type": "integer", "label": "Runs", "required": True},
+                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
+                }
             },
             {
-                "id": LOCATION_IDS["track"],
-                "name": "Fisiofit Centro de Fisioterapia",
-                "type": "gym",
-                "address_line1": "Medellín, Antioquia",
-                "city": "Medellín",
-                "region": "Antioquia",
-                "country": "Colombia",
-                # Coordinates will be approximate - user can update via UI
-                "latitude": 6.2476,
-                "longitude": -75.5658,
+                "name": "Pump track",
+                "discipline_type": "bmx",
+                "field_schema": {
+                    "runs": {"type": "integer", "label": "Runs", "required": True},
+                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                }
             },
             {
-                "id": LOCATION_IDS["home"],
-                "name": "Tierra Clara Apartamentos",
-                "type": "client_home",
-                "address_line1": "Sabaneta, Antioquia",
-                "city": "Sabaneta",
-                "region": "Antioquia",
-                "country": "Colombia",
-                "latitude": 6.1927169,
-                "longitude": -75.563297,
-                "google_place_id": "ChIJbXLWBOGDRo4R3RcRdWiIYig",
+                "name": "Práctica de curvas",
+                "discipline_type": "bmx",
+                "field_schema": {
+                    "runs": {"type": "integer", "label": "Runs", "required": True},
+                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                }
             },
         ]
         
-        for loc_data in locations:
-            result = await db.execute(select(Location).where(Location.id == loc_data["id"]))
-            if not result.scalar_one_or_none():
-                location = Location(
-                    trainer_id=TRAINER_ID,
-                    **loc_data
-                )
-                db.add(location)
-                locations_created += 1
-        
+        for template_data in bmx_templates:
+            template = ExerciseTemplate(
+                trainer_app_id=bmx_app.id,
+                **template_data
+            )
+            db.add(template)
         await db.flush()
-        print(f"  Created {locations_created} location(s)" if locations_created > 0 else "  ✓ All locations exist")
+        print(f"  ✓ Created {len(bmx_templates)} BMX exercise templates")
         
-        # 4. Create Clients
-        clients_created = 0
-        clients = [
+        # BMX Sessions
+        bmx_sessions = [
+            # Past completed sessions
             {
-                "id": CLIENT_IDS["client_a"],
-                "name": "Ana García",
-                "phone": "+57 301 234 5678",
-                "email": "ana@example.com",
-                "notes": "Objetivo: Perder peso y mejorar resistencia",
-                "birth_date": datetime(1990, 5, 15),
-                "gender": "F",
-                "height_cm": 165,
-                "weight_kg": 68.5,
-                "default_location_id": LOCATION_IDS["gym"],
+                "client_id": bmx_clients[0].id,
+                "location_id": bmx_track.id,
+                "scheduled_at": today - timedelta(days=7) + timedelta(hours=8),
+                "duration_minutes": 90,
+                "status": "completed",
+                "is_paid": True,
+                "paid_at": today - timedelta(days=6),
+                "session_doc": "Excelente progreso en saltos. Mejoró técnica de aterrizaje.",
             },
             {
-                "id": CLIENT_IDS["client_b"],
-                "name": "Carlos Rodríguez",
-                "phone": "+57 302 345 6789",
-                "email": "carlos@example.com",
-                "birth_date": datetime(1985, 8, 22),
-                "gender": "M",
-                "height_cm": 178,
-                "weight_kg": 82.0,
-                "default_location_id": LOCATION_IDS["track"],
+                "client_id": bmx_clients[1].id,
+                "location_id": bmx_track.id,
+                "scheduled_at": today - timedelta(days=5) + timedelta(hours=10),
+                "duration_minutes": 90,
+                "status": "completed",
+                "is_paid": False,
             },
+            # Upcoming sessions
             {
-                "id": CLIENT_IDS["client_c"],
-                "name": "María López",
-                "phone": "+57 303 456 7890",
-                "notes": "Preparación para maratón",
-                "default_location_id": LOCATION_IDS["track"],
-            },
-            {
-                "id": CLIENT_IDS["client_d"],
-                "name": "Juan Pérez",
-                "phone": "+57 304 567 8901",
-                "email": "juan@example.com",
-                "default_location_id": LOCATION_IDS["home"],
+                "client_id": bmx_clients[0].id,
+                "location_id": bmx_track.id,
+                "scheduled_at": today + timedelta(days=1) + timedelta(hours=8),
+                "duration_minutes": 90,
+                "status": "scheduled",
+                "is_paid": False,
             },
         ]
         
-        for client_data in clients:
-            result = await db.execute(select(Client).where(Client.id == client_data["id"]))
-            if not result.scalar_one_or_none():
-                client = Client(
-                    trainer_id=TRAINER_ID,
-                    **client_data
-                )
-                db.add(client)
-                clients_created += 1
-        
+        for session_data in bmx_sessions:
+            session = TrainingSession(
+                trainer_id=bmx_trainer.id,
+                **session_data
+            )
+            db.add(session)
         await db.flush()
-        print(f"  Created {clients_created} client(s)" if clients_created > 0 else "  ✓ All clients exist")
+        print(f"  ✓ Created {len(bmx_sessions)} BMX sessions")
         
-        # 4a. Create Exercise Templates
-        templates_created = 0
-        from sqlalchemy import delete
+        # ============================================================
+        # PHYSIO TRAINER DATASET
+        # ============================================================
+        print("\n📦 Creating Physio Trainer dataset...")
         
-        # Cleanup existing templates for this app
-        await db.execute(delete(ExerciseTemplate).where(ExerciseTemplate.trainer_app_id == APP_ID))
+        physio_trainer = Trainer(
+            name="Physio Trainer",
+            email="physio@test.com",
+            phone="+57 300 222 2222",
+            discipline_type="physio",
+            google_id="physio_google_id",
+        )
+        db.add(physio_trainer)
         await db.flush()
+        print(f"  ✓ Created Physio trainer (ID: {physio_trainer.id})")
         
-        exercise_templates = [
-            # Physio exercises
+        physio_app = TrainerApp(
+            trainer_id=physio_trainer.id,
+            name="Fisioterapia Pro",
+            theme_id="physio",
+            theme_config={
+                "colors": {
+                    "primary": "#2563eb",
+                    "secondary": "#64748b",
+                    "background": "#ffffff",
+                    "text": "#1e293b"
+                },
+                "fonts": {
+                    "heading": "Inter",
+                    "body": "Inter"
+                }
+            }
+        )
+        db.add(physio_app)
+        await db.flush()
+        print(f"  ✓ Created Physio app (ID: {physio_app.id})")
+        
+        # Physio Locations
+        physio_center = Location(
+            trainer_id=physio_trainer.id,
+            name="Fisiofit Centro de Fisioterapia",
+            type="gym",
+            address_line1="Medellín, Antioquia",
+            city="Medellín",
+            region="Antioquia",
+            country="Colombia",
+            latitude=6.2476,
+            longitude=-75.5658,
+        )
+        db.add(physio_center)
+        
+        home_location = Location(
+            trainer_id=physio_trainer.id,
+            name="Tierra Clara Apartamentos",
+            type="client_home",
+            address_line1="Sabaneta, Antioquia",
+            city="Sabaneta",
+            region="Antioquia",
+            country="Colombia",
+            latitude=6.1927169,
+            longitude=-75.563297,
+            google_place_id="ChIJbXLWBOGDRo4R3RcRdWiIYig",
+        )
+        db.add(home_location)
+        await db.flush()
+        print(f"  ✓ Created 2 Physio locations")
+        
+        # Physio Clients
+        physio_clients = []
+        for i, (name, phone, email) in enumerate([
+            ("Ana García", "+57 301 444 4444", "ana@example.com"),
+            ("Carlos Rodríguez", "+57 302 555 5555", "carlos@example.com"),
+            ("María López", "+57 303 666 6666", "maria@example.com"),
+        ]):
+            client = Client(
+                trainer_id=physio_trainer.id,
+                name=name,
+                phone=phone,
+                email=email,
+                default_location_id=physio_center.id,
+            )
+            db.add(client)
+            physio_clients.append(client)
+        await db.flush()
+        print(f"  ✓ Created {len(physio_clients)} Physio clients")
+        
+        # Physio Exercise Templates
+        physio_templates = [
             {
                 "name": "Sentadillas",
                 "discipline_type": "physio",
@@ -221,7 +295,6 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "peso": {"type": "float", "label": "Peso (kg)", "required": False},
-                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
                 }
             },
             {
@@ -231,7 +304,6 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "peso": {"type": "float", "label": "Peso (kg)", "required": False},
-                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
                 }
             },
             {
@@ -241,7 +313,6 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "peso": {"type": "float", "label": "Peso (kg)", "required": False},
-                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
                 }
             },
             {
@@ -251,281 +322,116 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "duracion_segundos": {"type": "integer", "label": "Duración (seg)", "required": False},
-                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
-                }
-            },
-            # BMX exercises
-            {
-                "name": "Saltos técnicos",
-                "discipline_type": "bmx",
-                "field_schema": {
-                    "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
-                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
-                    "estilo_pista": {"type": "select", "label": "Estilo de pista", "options": ["rhythm", "technical", "flow"], "required": False},
-                    "altura_salto": {"type": "float", "label": "Altura de salto (m)", "required": False}
-                }
-            },
-            {
-                "name": "Entrenamiento de pista",
-                "discipline_type": "bmx",
-                "field_schema": {
-                    "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
-                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
-                    "estilo_pista": {"type": "select", "label": "Estilo de pista", "options": ["rhythm", "technical", "flow"], "required": False},
-                    "altura_salto": {"type": "float", "label": "Altura de salto (m)", "required": False}
-                }
-            },
-            {
-                "name": "Práctica de curvas",
-                "discipline_type": "bmx",
-                "field_schema": {
-                    "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
-                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
-                    "estilo_pista": {"type": "select", "label": "Estilo de pista", "options": ["rhythm", "technical", "flow"], "required": False}
                 }
             },
         ]
         
-        for template_data in exercise_templates:
+        for template_data in physio_templates:
             template = ExerciseTemplate(
-                trainer_app_id=APP_ID,
+                trainer_app_id=physio_app.id,
                 **template_data
             )
             db.add(template)
-            templates_created += 1
-        
         await db.flush()
-        print(f"  Created {templates_created} exercise template(s)")
+        print(f"  ✓ Created {len(physio_templates)} Physio exercise templates")
         
-        # 5. Create Training Sessions
-        sessions_created = 0
-        from sqlalchemy import delete
-        
-        # Cleanup existing sessions and payments for this trainer to avoid overlap/duplicates
-        print("  Cleaning up existing sessions, groups, and payments...")
-        await db.execute(delete(TrainingSession).where(TrainingSession.trainer_id == TRAINER_ID))
-        await db.execute(delete(SessionGroup).where(SessionGroup.trainer_id == TRAINER_ID))
-        await db.execute(delete(Payment).where(Payment.trainer_id == TRAINER_ID))
-        await db.flush()
-
-        # Base date: Today at 00:00:00
-        now = datetime.now()
-        today = datetime(now.year, now.month, now.day)
-        
-        sessions = [
-            # Past sessions (completed, paid)
+        # Physio Sessions
+        physio_sessions = [
+            # Past completed sessions
             {
-                "client_id": CLIENT_IDS["client_a"],
-                "location_id": LOCATION_IDS["gym"],
-                "scheduled_at": today - timedelta(days=7) + timedelta(hours=8), # 08:00
+                "client_id": physio_clients[0].id,
+                "location_id": physio_center.id,
+                "scheduled_at": today - timedelta(days=7) + timedelta(hours=8),
                 "duration_minutes": 60,
-                "notes": "Sesión de fuerza",
                 "status": "completed",
                 "is_paid": True,
                 "paid_at": today - timedelta(days=6),
-                "session_doc": "Ejercicios: Sentadillas 3x10, Press de banca 3x10, Peso muerto 3x8. Cliente mostró buen progreso.",
+                "session_doc": "Sentadillas 3x10, Press de banca 3x10. Buen progreso.",
             },
             {
-                "client_id": CLIENT_IDS["client_a"],
-                "location_id": LOCATION_IDS["gym"],
-                "scheduled_at": today - timedelta(days=5) + timedelta(hours=10), # 10:00
+                "client_id": physio_clients[0].id,
+                "location_id": physio_center.id,
+                "scheduled_at": today - timedelta(days=5) + timedelta(hours=10),
                 "duration_minutes": 60,
                 "status": "completed",
                 "is_paid": True,
                 "paid_at": today - timedelta(days=4),
-                "session_doc": "Cardio intenso 30min + core. Excelente resistencia.",
             },
-            # Recent unpaid sessions
+            # Recent unpaid
             {
-                "client_id": CLIENT_IDS["client_a"],
-                "location_id": LOCATION_IDS["gym"],
-                "scheduled_at": today - timedelta(days=3) + timedelta(hours=14), # 14:00
+                "client_id": physio_clients[0].id,
+                "location_id": physio_center.id,
+                "scheduled_at": today - timedelta(days=3) + timedelta(hours=14),
                 "duration_minutes": 60,
                 "status": "completed",
                 "is_paid": False,
-                "session_doc": "Circuito funcional. Cliente reporta fatiga.",
             },
             {
-                "client_id": CLIENT_IDS["client_b"],
-                "location_id": LOCATION_IDS["track"],
-                "scheduled_at": today - timedelta(days=6) + timedelta(hours=8), # 08:00
-                "duration_minutes": 90,
-                "status": "completed",
-                "is_paid": False,
-            },
-            {
-                "client_id": CLIENT_IDS["client_b"],
-                "location_id": LOCATION_IDS["track"],
-                "scheduled_at": today - timedelta(days=4) + timedelta(hours=10), # 10:00
-                "duration_minutes": 90,
-                "status": "completed",
-                "is_paid": False,
-            },
-            # Upcoming sessions
-            {
-                "client_id": CLIENT_IDS["client_a"],
-                "location_id": LOCATION_IDS["gym"],
-                "scheduled_at": today + timedelta(days=1) + timedelta(hours=8), # 08:00
+                "client_id": physio_clients[1].id,
+                "location_id": physio_center.id,
+                "scheduled_at": today - timedelta(days=4) + timedelta(hours=10),
                 "duration_minutes": 60,
-                "notes": "Sesión de piernas",
+                "status": "completed",
+                "is_paid": False,
+            },
+            # Upcoming
+            {
+                "client_id": physio_clients[0].id,
+                "location_id": physio_center.id,
+                "scheduled_at": today + timedelta(days=1) + timedelta(hours=8),
+                "duration_minutes": 60,
                 "status": "scheduled",
                 "is_paid": False,
             },
             {
-                "client_id": CLIENT_IDS["client_b"],
-                "location_id": LOCATION_IDS["track"],
-                "scheduled_at": today + timedelta(days=2) + timedelta(hours=10), # 10:00
-                "duration_minutes": 90,
-                "status": "scheduled",
-                "is_paid": False,
-            },
-            {
-                "client_id": CLIENT_IDS["client_c"],
-                "location_id": LOCATION_IDS["track"],
-                "scheduled_at": today + timedelta(days=3) + timedelta(hours=8), # 08:00
-                "duration_minutes": 120,
-                "notes": "Entrenamiento largo - preparación maratón",
-                "status": "scheduled",
-                "is_paid": False,
-            },
-            # Cancelled session
-            {
-                "client_id": CLIENT_IDS["client_d"],
-                "location_id": LOCATION_IDS["home"],
-                "scheduled_at": today - timedelta(days=2) + timedelta(hours=16), # 16:00
+                "client_id": physio_clients[1].id,
+                "location_id": physio_center.id,
+                "scheduled_at": today + timedelta(days=2) + timedelta(hours=10),
                 "duration_minutes": 60,
-                "status": "cancelled",
+                "status": "scheduled",
                 "is_paid": False,
             },
         ]
         
-        for session_data in sessions:
+        for session_data in physio_sessions:
             session = TrainingSession(
-                trainer_id=TRAINER_ID,
+                trainer_id=physio_trainer.id,
                 **session_data
             )
             db.add(session)
-            sessions_created += 1
-        
         await db.flush()
-        print(f"  Created {sessions_created} individual session(s)")
+        print(f"  ✓ Created {len(physio_sessions)} Physio sessions")
         
-        # 5a. Create Session Groups (multi-client sessions)
-        # Example: BMX group training with 3 clients
-        groups_created = 0
-        
-        # Group session 1: BMX training with Ana, Carlos, and María (upcoming)
-        group1 = SessionGroup(
-            trainer_id=TRAINER_ID,
-            location_id=LOCATION_IDS["gym"],  # BMX track
-            scheduled_at=today + timedelta(days=4) + timedelta(hours=10),  # 10:00
-            duration_minutes=90,
-            notes="Entrenamiento grupal BMX - técnica de saltos",
+        # Physio Payments
+        payment = Payment(
+            trainer_id=physio_trainer.id,
+            client_id=physio_clients[0].id,
+            sessions_paid=2,
+            amount_cop=100000,
+            payment_date=today - timedelta(days=6),
+            notes="Pago por 2 sesiones",
         )
-        db.add(group1)
+        db.add(payment)
         await db.flush()
+        print(f"  ✓ Created 1 Physio payment")
         
-        # Create individual sessions for each client in the group
-        for client_name in ["client_a", "client_b", "client_c"]:
-            session = TrainingSession(
-                trainer_id=TRAINER_ID,
-                client_id=CLIENT_IDS[client_name],
-                location_id=LOCATION_IDS["gym"],
-                session_group_id=group1.id,
-                scheduled_at=group1.scheduled_at,
-                duration_minutes=90,
-                notes=group1.notes,
-                status="scheduled",
-                is_paid=False,
-            )
-            db.add(session)
-            sessions_created += 1
-        
-        groups_created += 1
-        
-        # Group session 2: BMX training with Carlos and María (past, completed)
-        group2 = SessionGroup(
-            trainer_id=TRAINER_ID,
-            location_id=LOCATION_IDS["gym"],
-            scheduled_at=today - timedelta(days=5) + timedelta(hours=14),  # 14:00
-            duration_minutes=90,
-            notes="Sesión grupal BMX - resistencia en pista",
-        )
-        db.add(group2)
-        await db.flush()
-        
-        for client_name in ["client_b", "client_c"]:
-            session = TrainingSession(
-                trainer_id=TRAINER_ID,
-                client_id=CLIENT_IDS[client_name],
-                location_id=LOCATION_IDS["gym"],
-                session_group_id=group2.id,
-                scheduled_at=group2.scheduled_at,
-                duration_minutes=90,
-                notes=group2.notes,
-                status="completed",
-                is_paid=False,
-                session_doc="Excelente trabajo en equipo. Mejoraron tiempos en 5 segundos.",
-            )
-            db.add(session)
-            sessions_created += 1
-        
-        groups_created += 1
-        
-        await db.flush()
-        print(f"  Created {groups_created} session group(s) with {groups_created * 3 - 1} additional sessions")
-        
-        # 6. Create Payment Records
-        payments_created = 0
-        payments = [
-            {
-                "client_id": CLIENT_IDS["client_a"],
-                "sessions_paid": 2,
-                "amount_cop": 100000,
-                "payment_date": today - timedelta(days=6),
-                "notes": "Pago por 2 sesiones",
-            },
-            {
-                "client_id": CLIENT_IDS["client_c"],
-                "sessions_paid": 10,
-                "amount_cop": 450000,
-                "payment_date": today - timedelta(days=1),
-                "notes": "Paquete prepago de 10 sesiones",
-            },
-        ]
-        
-        for payment_data in payments:
-            payment = Payment(
-                trainer_id=TRAINER_ID,
-                **payment_data
-            )
-            db.add(payment)
-            payments_created += 1
-        
-        await db.flush()
-        print(f"  Created {payments_created} payment(s)")
-
-        # Reset sequences so autoincrement continues after seeded IDs
+        # Reset sequences
         import sqlalchemy as sa
         for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'exercise_templates', 'training_sessions', 'session_groups', 'payments']:
             await db.execute(sa.text(
                 f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
             ))
-        print("  ✓ Sequences reset")
-
+        print("\n  ✓ Sequences reset")
+        
         # Commit all changes
         await db.commit()
         print("\n✅ Data seeding complete!")
         print(f"\n📊 Test Data Summary:")
-        print(f"   Trainer ID: {TRAINER_ID}")
-        print(f"   App ID: {APP_ID}")
-        print(f"   Locations: {len(LOCATION_IDS)}")
-        print(f"   Clients: {len(CLIENT_IDS)}")
-        print(f"   Sessions: {len(sessions)}")
-        print(f"   Payments: {len(payments)}")
+        print(f"   BMX Trainer ID: {bmx_trainer.id} (email: bmx@test.com)")
+        print(f"   Physio Trainer ID: {physio_trainer.id} (email: physio@test.com)")
+        print(f"   Total Clients: {len(bmx_clients) + len(physio_clients)}")
+        print(f"   Total Exercise Templates: {len(bmx_templates) + len(physio_templates)}")
+        print(f"   Total Sessions: {len(bmx_sessions) + len(physio_sessions)}")
 
 
 if __name__ == "__main__":

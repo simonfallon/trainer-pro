@@ -131,14 +131,54 @@ export default function HomePage() {
                                         <div style={{ margin: '1rem 0', textAlign: 'center', color: 'var(--color-secondary)' }}>
                                             — o —
                                         </div>
-                                        <button
-                                            onClick={handleDevLogin}
-                                            disabled={isSubmitting}
-                                            className="btn btn-secondary"
-                                            style={{ width: '100%' }}
-                                        >
-                                            🔧 {isSubmitting ? 'Cargando...' : 'Dev Login (Testing)'}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            <button
+                                                onClick={async () => {
+                                                    setIsSubmitting(true);
+                                                    setError('');
+                                                    try {
+                                                        const response = await devAuthApi.loginDiscipline('bmx');
+                                                        if (response.has_app && response.app_id) {
+                                                            window.location.href = `/dashboard?app_id=${response.app_id}`;
+                                                        } else {
+                                                            alert('BMX trainer has no app. Run seed script.');
+                                                        }
+                                                    } catch (err) {
+                                                        setError(err instanceof Error ? err.message : 'Error en dev login');
+                                                    } finally {
+                                                        setIsSubmitting(false);
+                                                    }
+                                                }}
+                                                disabled={isSubmitting}
+                                                className="btn btn-secondary"
+                                                style={{ flex: 1 }}
+                                            >
+                                                🚴 {isSubmitting ? 'Cargando...' : 'Dev Login (BMX)'}
+                                            </button>
+                                            <button
+                                                onClick={async () => {
+                                                    setIsSubmitting(true);
+                                                    setError('');
+                                                    try {
+                                                        const response = await devAuthApi.loginDiscipline('physio');
+                                                        if (response.has_app && response.app_id) {
+                                                            window.location.href = `/dashboard?app_id=${response.app_id}`;
+                                                        } else {
+                                                            alert('Physio trainer has no app. Run seed script.');
+                                                        }
+                                                    } catch (err) {
+                                                        setError(err instanceof Error ? err.message : 'Error en dev login');
+                                                    } finally {
+                                                        setIsSubmitting(false);
+                                                    }
+                                                }}
+                                                disabled={isSubmitting}
+                                                className="btn btn-secondary"
+                                                style={{ flex: 1 }}
+                                            >
+                                                💪 {isSubmitting ? 'Cargando...' : 'Dev Login (Physio)'}
+                                            </button>
+                                        </div>
                                     </>
                                 )}
 

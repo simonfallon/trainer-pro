@@ -99,6 +99,7 @@ async def test_trainer(db_session: AsyncSession) -> Trainer:
         name="Test Trainer",
         email="test_trainer@test.com",
         phone="+57 300 123 4567",
+        discipline_type="physio",
     )
     db_session.add(trainer)
     await db_session.flush()

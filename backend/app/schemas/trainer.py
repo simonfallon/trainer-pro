@@ -11,6 +11,7 @@ class TrainerBase(BaseModel):
     phone: str | None = Field(None, min_length=1, max_length=50)
     email: EmailStr
     logo_url: str | None = None
+    discipline_type: str = Field(..., pattern="^(bmx|physio)$")
     google_id: str | None = None
 
     @field_validator("email")
@@ -37,6 +38,7 @@ class TrainerUpdate(BaseModel):
     phone: str | None = Field(None, min_length=1, max_length=50)
     email: EmailStr | None = None
     logo_url: str | None = None
+    discipline_type: str | None = Field(None, pattern="^(bmx|physio)$")
 
     @field_validator("email")
     def validate_google_email(cls, v: str | None) -> str | None:
@@ -59,6 +61,7 @@ class TrainerResponse(TrainerBase):
     id: int
     google_id: str | None = None
     logo_url: str | None = None
+    discipline_type: str
     created_at: datetime
     updated_at: datetime
     
