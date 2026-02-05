@@ -64,6 +64,12 @@ class SessionGroup(Base):
         back_populates="session_group",
         cascade="all, delete-orphan",
     )
+    exercises: Mapped[list["SessionExercise"]] = relationship(
+        "SessionExercise",
+        back_populates="session_group",
+        cascade="all, delete-orphan",
+        order_by="SessionExercise.order_index",
+    )
     
     def __repr__(self) -> str:
         return f"<SessionGroup {self.scheduled_at} ({len(self.sessions)} clients)>"
@@ -73,3 +79,4 @@ class SessionGroup(Base):
 from app.models.trainer import Trainer
 from app.models.location import Location
 from app.models.session import TrainingSession
+from app.models.session_exercise import SessionExercise

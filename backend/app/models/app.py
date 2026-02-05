@@ -42,6 +42,11 @@ class TrainerApp(Base):
         "Trainer",
         back_populates="apps",
     )
+    exercise_templates: Mapped[list["ExerciseTemplate"]] = relationship(
+        "ExerciseTemplate",
+        back_populates="trainer_app",
+        cascade="all, delete-orphan",
+    )
     
     def __repr__(self) -> str:
         return f"<TrainerApp {self.name} ({self.id})>"
@@ -49,3 +54,4 @@ class TrainerApp(Base):
 
 # Import for type hints
 from app.models.trainer import Trainer
+from app.models.exercise_template import ExerciseTemplate

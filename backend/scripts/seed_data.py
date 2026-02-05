@@ -24,6 +24,7 @@ from app.models.client import Client
 from app.models.session import TrainingSession
 from app.models.session_group import SessionGroup
 from app.models.payment import Payment
+from app.models.exercise_template import ExerciseTemplate
 
 
 # Fixed integer IDs for consistent testing
@@ -202,6 +203,102 @@ async def seed_data():
         
         await db.flush()
         print(f"  Created {clients_created} client(s)" if clients_created > 0 else "  ✓ All clients exist")
+        
+        # 4a. Create Exercise Templates
+        templates_created = 0
+        from sqlalchemy import delete
+        
+        # Cleanup existing templates for this app
+        await db.execute(delete(ExerciseTemplate).where(ExerciseTemplate.trainer_app_id == APP_ID))
+        await db.flush()
+        
+        exercise_templates = [
+            # Physio exercises
+            {
+                "name": "Sentadillas",
+                "discipline_type": "physio",
+                "field_schema": {
+                    "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
+                    "series": {"type": "integer", "label": "Series", "required": True},
+                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
+                }
+            },
+            {
+                "name": "Press de banca",
+                "discipline_type": "physio",
+                "field_schema": {
+                    "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
+                    "series": {"type": "integer", "label": "Series", "required": True},
+                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
+                }
+            },
+            {
+                "name": "Peso muerto",
+                "discipline_type": "physio",
+                "field_schema": {
+                    "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
+                    "series": {"type": "integer", "label": "Series", "required": True},
+                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
+                }
+            },
+            {
+                "name": "Plancha",
+                "discipline_type": "physio",
+                "field_schema": {
+                    "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
+                    "series": {"type": "integer", "label": "Series", "required": True},
+                    "duracion_segundos": {"type": "integer", "label": "Duración (seg)", "required": False},
+                    "variaciones": {"type": "text", "label": "Variaciones", "required": False}
+                }
+            },
+            # BMX exercises
+            {
+                "name": "Saltos técnicos",
+                "discipline_type": "bmx",
+                "field_schema": {
+                    "runs": {"type": "integer", "label": "Runs", "required": True},
+                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
+                    "estilo_pista": {"type": "select", "label": "Estilo de pista", "options": ["rhythm", "technical", "flow"], "required": False},
+                    "altura_salto": {"type": "float", "label": "Altura de salto (m)", "required": False}
+                }
+            },
+            {
+                "name": "Entrenamiento de pista",
+                "discipline_type": "bmx",
+                "field_schema": {
+                    "runs": {"type": "integer", "label": "Runs", "required": True},
+                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
+                    "estilo_pista": {"type": "select", "label": "Estilo de pista", "options": ["rhythm", "technical", "flow"], "required": False},
+                    "altura_salto": {"type": "float", "label": "Altura de salto (m)", "required": False}
+                }
+            },
+            {
+                "name": "Práctica de curvas",
+                "discipline_type": "bmx",
+                "field_schema": {
+                    "runs": {"type": "integer", "label": "Runs", "required": True},
+                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
+                    "estilo_pista": {"type": "select", "label": "Estilo de pista", "options": ["rhythm", "technical", "flow"], "required": False}
+                }
+            },
+        ]
+        
+        for template_data in exercise_templates:
+            template = ExerciseTemplate(
+                trainer_app_id=APP_ID,
+                **template_data
+            )
+            db.add(template)
+            templates_created += 1
+        
+        await db.flush()
+        print(f"  Created {templates_created} exercise template(s)")
         
         # 5. Create Training Sessions
         sessions_created = 0
@@ -413,7 +510,7 @@ async def seed_data():
 
         # Reset sequences so autoincrement continues after seeded IDs
         import sqlalchemy as sa
-        for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'training_sessions', 'session_groups', 'payments']:
+        for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'exercise_templates', 'training_sessions', 'session_groups', 'payments']:
             await db.execute(sa.text(
                 f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
             ))
