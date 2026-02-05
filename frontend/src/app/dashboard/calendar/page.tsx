@@ -16,8 +16,9 @@ export default function CalendarPage() {
 
     const [modalConfig, setModalConfig] = useState<{
         isOpen: boolean;
-        mode: 'create' | 'view';
+        mode: 'create' | 'view' | 'edit';
         session?: TrainingSession;
+        groupSessions?: TrainingSession[];
         initialDate?: Date;
     }>({ isOpen: false, mode: 'create' });
 
@@ -46,22 +47,37 @@ export default function CalendarPage() {
         const scheduledAt = new Date(`${data.date}T${data.time}`);
 
         if (data.id) {
+            // Editing existing session - only single client supported for now
             await sessionsApi.update(data.id, {
                 scheduled_at: scheduledAt.toISOString(),
                 duration_minutes: data.duration_minutes,
                 notes: data.notes,
-                client_id: data.client_id,
+                client_id: data.client_ids[0],  // Take first client for editing
                 location_id: data.location_id || undefined,
             });
         } else {
-            await sessionsApi.create({
-                trainer_id: app.trainer_id,
-                client_id: data.client_id,
-                location_id: data.location_id || undefined,
-                scheduled_at: scheduledAt.toISOString(),
-                duration_minutes: data.duration_minutes,
-                notes: data.notes.trim() || undefined,
-            });
+            // Creating new session
+            if (data.client_ids.length > 1) {
+                // Multi-client session - create a session group
+                await sessionsApi.createGroup({
+                    trainer_id: app.trainer_id,
+                    client_ids: data.client_ids,
+                    location_id: data.location_id || undefined,
+                    scheduled_at: scheduledAt.toISOString(),
+                    duration_minutes: data.duration_minutes,
+                    notes: data.notes.trim() || undefined,
+                });
+            } else {
+                // Single client session - use existing endpoint
+                await sessionsApi.create({
+                    trainer_id: app.trainer_id,
+                    client_id: data.client_ids[0],
+                    location_id: data.location_id || undefined,
+                    scheduled_at: scheduledAt.toISOString(),
+                    duration_minutes: data.duration_minutes,
+                    notes: data.notes.trim() || undefined,
+                });
+            }
         }
 
         mutate(sessionsKey);
@@ -92,10 +108,16 @@ export default function CalendarPage() {
     };
 
     const handleSessionClick = (session: TrainingSession) => {
+        let groupSessions: TrainingSession[] = [];
+        if (session.session_group_id) {
+            groupSessions = sessions.filter(s => s.session_group_id === session.session_group_id);
+        }
+
         setModalConfig({
             isOpen: true,
             mode: 'view',
             session: session,
+            groupSessions: groupSessions,
         });
     };
 
@@ -115,6 +137,7 @@ export default function CalendarPage() {
                 <SessionModal
                     mode={modalConfig.mode}
                     session={modalConfig.session}
+                    groupSessions={modalConfig.groupSessions}
                     initialDate={modalConfig.initialDate}
                     clients={clients}
                     locations={locations}

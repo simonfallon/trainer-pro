@@ -7,11 +7,12 @@ import { es } from 'date-fns/locale';
 import { SESSION_STATUS_LABELS } from '@/lib/labels';
 
 interface SessionModalProps {
-    mode: 'create' | 'view';
+    mode: 'create' | 'view' | 'edit';
     session?: TrainingSession;
+    groupSessions?: TrainingSession[];
     initialDate?: Date;
     clients: Client[];
-    locations?: Location[];
+    locations: Location[];
     onClose: () => void;
     onSave: (data: any) => Promise<void>;
     onStatusChange: (sessionId: number, status: string) => Promise<void>;
@@ -20,6 +21,7 @@ interface SessionModalProps {
 export const SessionModal: React.FC<SessionModalProps> = ({
     mode: initialMode,
     session,
+    groupSessions = [],
     initialDate,
     clients,
     locations = [],
@@ -29,7 +31,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
 }) => {
     const [mode, setMode] = useState<'create' | 'view' | 'edit'>(initialMode);
     const [formData, setFormData] = useState({
-        client_id: '',
+        client_ids: [] as number[],
         location_id: '',
         date: '',
         time: '09:00',
@@ -38,6 +40,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [showClientDropdown, setShowClientDropdown] = useState(false);
 
     useEffect(() => {
         if (mode === 'create' && initialDate) {
@@ -48,8 +51,15 @@ export const SessionModal: React.FC<SessionModalProps> = ({
             }));
         } else if ((mode === 'edit' || mode === 'view') && session) {
             const date = new Date(session.scheduled_at);
+
+            // Determine all client IDs involved
+            let clientIds: number[] = [session.client_id];
+            if (groupSessions.length > 0) {
+                clientIds = groupSessions.map(s => s.client_id);
+            }
+
             setFormData({
-                client_id: String(session.client_id),
+                client_ids: clientIds,
                 location_id: session.location_id != null ? String(session.location_id) : '',
                 date: format(date, 'yyyy-MM-dd'),
                 time: format(date, 'HH:mm'),
@@ -57,7 +67,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                 notes: session.notes || '',
             });
         }
-    }, [mode, session, initialDate]);
+    }, [mode, session, initialDate, groupSessions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -87,7 +97,22 @@ export const SessionModal: React.FC<SessionModalProps> = ({
         }
     };
 
-    const clientName = clients.find(c => String(c.id) === formData.client_id)?.name || 'Cliente';
+    const handleClientToggle = (clientId: number) => {
+        setFormData(prev => ({
+            ...prev,
+            client_ids: prev.client_ids.includes(clientId)
+                ? prev.client_ids.filter(id => id !== clientId)
+                : [...prev.client_ids, clientId]
+        }));
+    };
+
+    const selectedClientsText = formData.client_ids.length === 0
+        ? 'Selecciona uno o más clientes'
+        : formData.client_ids.length === 1
+            ? clients.find(c => c.id === formData.client_ids[0])?.name || 'Cliente'
+            : `${formData.client_ids.length} clientes seleccionados`;
+
+    const clientName = clients.find(c => String(c.id) === formData.client_ids[0]?.toString())?.name || 'Cliente';
 
     if (mode === 'view' && session) {
         return (
@@ -99,8 +124,18 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                     </div>
                     <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <div>
-                            <label className="form-label" style={{ fontSize: '0.75rem' }}>Cliente</label>
-                            <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>{clients.find(c => c.id === session.client_id)?.name || 'Desconocido'}</p>
+                            <label className="form-label" style={{ fontSize: '0.75rem' }}>
+                                {formData.client_ids.length > 1 ? 'Clientes' : 'Cliente'}
+                            </label>
+                            {formData.client_ids.length > 0 ? (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
+                                    {formData.client_ids.map(id => (
+                                        <li key={id}>{clients.find(c => c.id === id)?.name || 'Desconocido'}</li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Desconocido</p>
+                            )}
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                             <div>
@@ -175,18 +210,81 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label className="form-label" htmlFor="sessionClient">Cliente *</label>
-                        <select
-                            id="sessionClient"
-                            className="form-select"
-                            value={formData.client_id}
-                            onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                            required
-                        >
-                            <option value="">Selecciona un cliente</option>
-                            {clients.map((client) => (
-                                <option key={client.id} value={client.id}>{client.name}</option>
-                            ))}
-                        </select>
+                        <div style={{ position: 'relative' }}>
+                            <button
+                                type="button"
+                                className="form-select"
+                                style={{
+                                    textAlign: 'left',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center'
+                                }}
+                                onClick={() => setShowClientDropdown(!showClientDropdown)}
+                            >
+                                <span>{selectedClientsText}</span>
+                                <span>{showClientDropdown ? '▲' : '▼'}</span>
+                            </button>
+
+                            {showClientDropdown && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    right: 0,
+                                    backgroundColor: 'white',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: '4px',
+                                    marginTop: '4px',
+                                    maxHeight: '300px',
+                                    overflowY: 'auto',
+                                    zIndex: 1000,
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                }}>
+                                    {clients.map((client) => (
+                                        <div
+                                            key={client.id}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                padding: '8px 12px',
+                                                cursor: 'pointer',
+                                                borderBottom: '1px solid var(--border-color)',
+                                            }}
+                                            onClick={() => handleClientToggle(client.id)}
+                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--background-muted)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.client_ids.includes(client.id)}
+                                                onChange={() => { }} // Handled by parent div onClick
+                                                style={{ marginRight: '8px', pointerEvents: 'none' }}
+                                            />
+                                            <span>{client.name}</span>
+                                        </div>
+                                    ))}
+                                    <div style={{
+                                        padding: '8px 12px',
+                                        borderTop: '2px solid var(--border-color)',
+                                        backgroundColor: 'var(--background-muted)'
+                                    }}>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowClientDropdown(false);
+                                            }}
+                                            style={{ width: '100%' }}
+                                        >
+                                            Listo
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -275,7 +373,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={submitting || !formData.client_id || !formData.date}
+                            disabled={submitting || formData.client_ids.length === 0 || !formData.date}
                             style={{ flex: 1 }}
                         >
                             {submitting ? 'Guardando...' : 'Guardar'}

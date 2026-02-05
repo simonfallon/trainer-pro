@@ -119,6 +119,7 @@ const mockBalance = {
     unpaid_sessions: 1,
     prepaid_sessions: 0,
     has_positive_balance: false,
+    total_amount_paid_cop: 150000,
 };
 
 // Helper: set all three SWR keys to the happy-path defaults
@@ -154,10 +155,14 @@ describe('ClientDetailPage', () => {
         expect(screen.getByText('1 / 2')).toBeInTheDocument();
         expect(screen.getByText('Sesiones Pagadas')).toBeInTheDocument();
 
-        // Card 2: "Balance de Pagos" → completed-paid / completed-unpaid
-        expect(screen.getByText('1 pagadas')).toBeInTheDocument();
-        expect(screen.getByText('0 pendientes')).toBeInTheDocument();
-        expect(screen.getByText('Balance de Pagos')).toBeInTheDocument();
+        // Card 2: "Total Pagado"
+        // The component renders: $ 150.000 COP
+        // We use a function matcher to be flexible with whitespace
+        expect(screen.getByText((content) => {
+            const normalized = content.replace(/\s+/g, ' ').trim();
+            return normalized.includes('150.000') && normalized.includes('COP');
+        })).toBeInTheDocument();
+        expect(screen.getByText('Total Pagado')).toBeInTheDocument();
     });
 
     // 3. Personal info fields render

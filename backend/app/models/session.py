@@ -41,6 +41,11 @@ class TrainingSession(Base):
         ForeignKey("locations.id", ondelete="SET NULL"),
         nullable=True,
     )
+    session_group_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("session_groups.id", ondelete="CASCADE"),
+        nullable=True,
+    )
     
     scheduled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -91,6 +96,10 @@ class TrainingSession(Base):
         "Location",
         back_populates="sessions",
     )
+    session_group: Mapped["SessionGroup | None"] = relationship(
+        "SessionGroup",
+        back_populates="sessions",
+    )
     
     def __repr__(self) -> str:
         return f"<TrainingSession {self.scheduled_at} ({self.status})>"
@@ -100,3 +109,4 @@ class TrainingSession(Base):
 from app.models.trainer import Trainer
 from app.models.client import Client
 from app.models.location import Location
+from app.models.session_group import SessionGroup

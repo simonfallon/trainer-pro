@@ -83,6 +83,7 @@ export interface TrainingSession {
     trainer_id: number;
     client_id: number;
     location_id: number | null;
+    session_group_id: number | null;
     scheduled_at: string;
     duration_minutes: number;
     notes: string | null;
@@ -94,6 +95,18 @@ export interface TrainingSession {
     session_doc: string | null;
     created_at: string;
     updated_at: string;
+}
+
+export interface SessionGroup {
+    id: number;
+    trainer_id: number;
+    location_id: number | null;
+    scheduled_at: string;
+    duration_minutes: number;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+    sessions: TrainingSession[];
 }
 
 export interface SessionStats {
@@ -157,6 +170,15 @@ export interface ClientCreateInput {
 export interface SessionCreateInput {
     trainer_id: number;
     client_id: number;
+    location_id?: number;
+    scheduled_at: string;
+    duration_minutes: number;
+    notes?: string;
+}
+
+export interface SessionGroupCreateInput {
+    trainer_id: number;
+    client_ids: number[];
     location_id?: number;
     scheduled_at: string;
     duration_minutes: number;

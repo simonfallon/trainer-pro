@@ -58,6 +58,11 @@ class Trainer(Base):
         back_populates="trainer",
         cascade="all, delete-orphan",
     )
+    session_groups: Mapped[list["SessionGroup"]] = relationship(
+        "SessionGroup",
+        back_populates="trainer",
+        cascade="all, delete-orphan",
+    )
     payments: Mapped[list["Payment"]] = relationship(
         "Payment",
         back_populates="trainer",
@@ -73,4 +78,5 @@ from app.models.app import TrainerApp
 from app.models.location import Location
 from app.models.client import Client
 from app.models.session import TrainingSession
+from app.models.session_group import SessionGroup
 from app.models.payment import Payment

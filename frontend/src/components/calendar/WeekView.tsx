@@ -137,6 +137,25 @@ export const WeekView: React.FC<WeekViewProps> = ({
                     const daySessions = getSessionsForDay(day);
                     const isTodayColumn = isSameDay(day, now);
 
+                    // Group sessions for display
+                    const processedSessions: { session: TrainingSession, label?: string }[] = [];
+                    const processedGroups = new Set<number>();
+
+                    daySessions.forEach(session => {
+                        if (session.session_group_id) {
+                            if (processedGroups.has(session.session_group_id)) return;
+
+                            processedGroups.add(session.session_group_id);
+                            const groupCount = daySessions.filter(s => s.session_group_id === session.session_group_id).length;
+                            processedSessions.push({
+                                session,
+                                label: `${groupCount} clientes`
+                            });
+                        } else {
+                            processedSessions.push({ session });
+                        }
+                    });
+
                     return (
                         <div
                             key={day.toISOString()}
@@ -164,11 +183,12 @@ export const WeekView: React.FC<WeekViewProps> = ({
                             )}
 
                             {/* Events */}
-                            {daySessions.map((session) => (
+                            {processedSessions.map(({ session, label }) => (
                                 <EventItem
                                     key={session.id}
                                     session={session}
                                     client={clients.find(c => c.id === session.client_id)}
+                                    label={label}
                                     onClick={onSessionClick}
                                 />
                             ))}

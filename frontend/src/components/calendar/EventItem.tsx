@@ -7,10 +7,11 @@ import { differenceInMinutes, format } from 'date-fns';
 interface EventItemProps {
     session: TrainingSession;
     client?: Client;
+    label?: string;
     onClick: (session: TrainingSession) => void;
 }
 
-export const EventItem: React.FC<EventItemProps> = ({ session, client, onClick }) => {
+export const EventItem: React.FC<EventItemProps> = ({ session, client, label, onClick }) => {
     // Determine visuals based on status
     const statusClass = `status-${session.status}`;
 
@@ -25,7 +26,7 @@ export const EventItem: React.FC<EventItemProps> = ({ session, client, onClick }
     // Height in pixels (1 min = 1 px)
     const height = duration;
 
-    const clientName = client?.name || 'Cliente';
+    const clientName = label || client?.name || 'Cliente';
 
     // Don't render cancelled sessions if requested (but here we just render what is passed)
     // The parent should filter if needed.

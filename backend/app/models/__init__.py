@@ -6,6 +6,7 @@ from app.models.app import TrainerApp
 from app.models.location import Location
 from app.models.client import Client
 from app.models.session import TrainingSession
+from app.models.session_group import SessionGroup
 from app.models.payment import Payment
 
-__all__ = ["Trainer", "TrainerApp", "Location", "Client", "TrainingSession", "Payment"]
+__all__ = ["Trainer", "TrainerApp", "Location", "Client", "TrainingSession", "SessionGroup", "Payment"]

@@ -150,6 +150,18 @@ export const sessionsApi = {
         fetchAPI<import('@/types').TrainingSession>(`/sessions/${id}/payment`, {
             method: 'PATCH',
         }),
+    // Session groups
+    createGroup: (data: import('@/types').SessionGroupCreateInput) =>
+        fetchAPI<import('@/types').SessionGroup>('/sessions/group', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    listGroups: (trainerId: number, startDate?: string, endDate?: string) => {
+        let url = `/sessions/groups?trainer_id=${trainerId}`;
+        if (startDate) url += `&start_date=${startDate}`;
+        if (endDate) url += `&end_date=${endDate}`;
+        return fetchAPI<import('@/types').SessionGroup[]>(url);
+    },
 };
 
 // Uploads API

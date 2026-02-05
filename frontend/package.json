@@ -7,8 +7,8 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "test": "vitest run",
-        "test:agent": "mkdir -p node_modules/.tmp/test && TMPDIR=$(pwd)/node_modules/.tmp/test vitest run"
+        "test": "mkdir -p node_modules/.tmp/test && TMPDIR=\"$(pwd)/node_modules/.tmp/test\" vitest run",
+        "test:agent": "mkdir -p node_modules/.tmp/test && TMPDIR=\"$(pwd)/node_modules/.tmp/test\" vitest run"
     },
     "dependencies": {
         "@react-oauth/google": "^0.13.4",

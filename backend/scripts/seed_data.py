@@ -22,6 +22,7 @@ from app.models.app import TrainerApp
 from app.models.location import Location
 from app.models.client import Client
 from app.models.session import TrainingSession
+from app.models.session_group import SessionGroup
 from app.models.payment import Payment
 
 
@@ -207,8 +208,9 @@ async def seed_data():
         from sqlalchemy import delete
         
         # Cleanup existing sessions and payments for this trainer to avoid overlap/duplicates
-        print("  Cleaning up existing sessions and payments...")
+        print("  Cleaning up existing sessions, groups, and payments...")
         await db.execute(delete(TrainingSession).where(TrainingSession.trainer_id == TRAINER_ID))
+        await db.execute(delete(SessionGroup).where(SessionGroup.trainer_id == TRAINER_ID))
         await db.execute(delete(Payment).where(Payment.trainer_id == TRAINER_ID))
         await db.flush()
 
@@ -312,7 +314,72 @@ async def seed_data():
             sessions_created += 1
         
         await db.flush()
-        print(f"  Created {sessions_created} session(s)")
+        print(f"  Created {sessions_created} individual session(s)")
+        
+        # 5a. Create Session Groups (multi-client sessions)
+        # Example: BMX group training with 3 clients
+        groups_created = 0
+        
+        # Group session 1: BMX training with Ana, Carlos, and María (upcoming)
+        group1 = SessionGroup(
+            trainer_id=TRAINER_ID,
+            location_id=LOCATION_IDS["gym"],  # BMX track
+            scheduled_at=today + timedelta(days=4) + timedelta(hours=10),  # 10:00
+            duration_minutes=90,
+            notes="Entrenamiento grupal BMX - técnica de saltos",
+        )
+        db.add(group1)
+        await db.flush()
+        
+        # Create individual sessions for each client in the group
+        for client_name in ["client_a", "client_b", "client_c"]:
+            session = TrainingSession(
+                trainer_id=TRAINER_ID,
+                client_id=CLIENT_IDS[client_name],
+                location_id=LOCATION_IDS["gym"],
+                session_group_id=group1.id,
+                scheduled_at=group1.scheduled_at,
+                duration_minutes=90,
+                notes=group1.notes,
+                status="scheduled",
+                is_paid=False,
+            )
+            db.add(session)
+            sessions_created += 1
+        
+        groups_created += 1
+        
+        # Group session 2: BMX training with Carlos and María (past, completed)
+        group2 = SessionGroup(
+            trainer_id=TRAINER_ID,
+            location_id=LOCATION_IDS["gym"],
+            scheduled_at=today - timedelta(days=5) + timedelta(hours=14),  # 14:00
+            duration_minutes=90,
+            notes="Sesión grupal BMX - resistencia en pista",
+        )
+        db.add(group2)
+        await db.flush()
+        
+        for client_name in ["client_b", "client_c"]:
+            session = TrainingSession(
+                trainer_id=TRAINER_ID,
+                client_id=CLIENT_IDS[client_name],
+                location_id=LOCATION_IDS["gym"],
+                session_group_id=group2.id,
+                scheduled_at=group2.scheduled_at,
+                duration_minutes=90,
+                notes=group2.notes,
+                status="completed",
+                is_paid=False,
+                session_doc="Excelente trabajo en equipo. Mejoraron tiempos en 5 segundos.",
+            )
+            db.add(session)
+            sessions_created += 1
+        
+        groups_created += 1
+        
+        await db.flush()
+        print(f"  Created {groups_created} session group(s) with {groups_created * 3 - 1} additional sessions")
         
         # 6. Create Payment Records
         payments_created = 0
@@ -346,7 +413,7 @@ async def seed_data():
 
         # Reset sequences so autoincrement continues after seeded IDs
         import sqlalchemy as sa
-        for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'training_sessions', 'payments']:
+        for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'training_sessions', 'session_groups', 'payments']:
             await db.execute(sa.text(
                 f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
             ))

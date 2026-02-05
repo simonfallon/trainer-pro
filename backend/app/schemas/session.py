@@ -44,6 +44,7 @@ class SessionResponse(SessionBase):
     """Schema for session response."""
     id: int
     trainer_id: int
+    session_group_id: int | None = None
     is_paid: bool = False
     paid_at: datetime | None = None
     created_at: datetime
@@ -61,3 +62,28 @@ class SessionStats(BaseModel):
     cancelled_sessions: int
     total_clients: int
 
+
+class SessionGroupCreate(BaseModel):
+    """Schema for creating a session group with multiple clients."""
+    trainer_id: int
+    client_ids: list[int] = Field(..., min_length=1)
+    location_id: int | None = None
+    scheduled_at: datetime
+    duration_minutes: int = Field(default=60, ge=15, le=480)
+    notes: str | None = None
+
+
+class SessionGroupResponse(BaseModel):
+    """Schema for session group response."""
+    id: int
+    trainer_id: int
+    location_id: int | None
+    scheduled_at: datetime
+    duration_minutes: int
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+    sessions: list[SessionResponse] = []
+    
+    class Config:
+        from_attributes = True

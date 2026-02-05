@@ -77,6 +77,10 @@ class Location(Base):
         "TrainingSession",
         back_populates="location",
     )
+    session_groups: Mapped[list["SessionGroup"]] = relationship(
+        "SessionGroup",
+        back_populates="location",
+    )
     
     def __repr__(self) -> str:
         return f"<Location {self.name} ({self.type})>"
@@ -86,3 +90,4 @@ class Location(Base):
 from app.models.trainer import Trainer
 from app.models.client import Client
 from app.models.session import TrainingSession
+from app.models.session_group import SessionGroup

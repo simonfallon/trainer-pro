@@ -4,16 +4,20 @@ Sessions API Router
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.session import TrainingSession, SessionStatus
+from app.models.session_group import SessionGroup
 from app.models.client import Client
 from app.schemas.session import (
     SessionCreate,
     SessionUpdate,
     SessionResponse,
     SessionStats,
+    SessionGroupCreate,
+    SessionGroupResponse,
 )
 
 router = APIRouter()
@@ -203,3 +207,71 @@ async def toggle_session_payment(
     await db.flush()
     await db.refresh(session)
     return session
+
+
+@router.post("/group", response_model=SessionGroupResponse, status_code=status.HTTP_201_CREATED)
+async def create_session_group(
+    group_data: SessionGroupCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new session group with multiple clients."""
+    # Create the session group
+    session_group = SessionGroup(
+        trainer_id=group_data.trainer_id,
+        location_id=group_data.location_id,
+        scheduled_at=group_data.scheduled_at,
+        duration_minutes=group_data.duration_minutes,
+        notes=group_data.notes,
+    )
+    db.add(session_group)
+    await db.flush()
+    
+    # Create individual sessions for each client
+    for client_id in group_data.client_ids:
+        session = TrainingSession(
+            trainer_id=group_data.trainer_id,
+            client_id=client_id,
+            location_id=group_data.location_id,
+            session_group_id=session_group.id,
+            scheduled_at=group_data.scheduled_at,
+            duration_minutes=group_data.duration_minutes,
+            notes=group_data.notes,
+            status=SessionStatus.SCHEDULED.value,
+        )
+        db.add(session)
+    
+    await db.flush()
+    
+    # Eagerly load the sessions relationship to avoid greenlet error
+    result = await db.execute(
+        select(SessionGroup)
+        .options(selectinload(SessionGroup.sessions))
+        .where(SessionGroup.id == session_group.id)
+    )
+    session_group = result.scalar_one()
+    
+    return session_group
+
+
+@router.get("/groups", response_model=list[SessionGroupResponse])
+async def list_session_groups(
+    trainer_id: int = Query(..., description="Trainer ID to filter session groups"),
+    start_date: datetime | None = Query(None, description="Filter from this date"),
+    end_date: datetime | None = Query(None, description="Filter until this date"),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all session groups for a trainer."""
+    query = (
+        select(SessionGroup)
+        .options(selectinload(SessionGroup.sessions))
+        .where(SessionGroup.trainer_id == trainer_id)
+    )
+    
+    if start_date:
+        query = query.where(SessionGroup.scheduled_at >= start_date)
+    if end_date:
+        query = query.where(SessionGroup.scheduled_at <= end_date)
+    
+    query = query.order_by(SessionGroup.scheduled_at)
+    result = await db.execute(query)
+    return result.scalars().all()
