@@ -22,7 +22,7 @@ os.environ["DATABASE_URL"] = os.getenv(
 
 from app.main import app
 from app.database import Base, get_db
-from app.models import Trainer, Client, TrainingSession, Payment
+from app.models import Trainer, Client, TrainingSession, Payment, TrainerApp, ExerciseTemplate, SessionExercise
 
 
 # Create test engine
@@ -141,3 +141,70 @@ async def test_session(
     db_session.add(session)
     await db_session.flush()
     return session
+
+
+@pytest.fixture
+async def test_app(db_session: AsyncSession, test_trainer: Trainer) -> TrainerApp:
+    """Create a test trainer app."""
+    app = TrainerApp(
+        trainer_id=test_trainer.id,
+        name="Test BMX App",
+        theme_id="bmx",
+        theme_config={"colors": {"primary": "#2563eb"}},
+    )
+    db_session.add(app)
+    await db_session.flush()
+    return app
+
+
+@pytest.fixture
+async def test_exercise_template(db_session: AsyncSession, test_app: TrainerApp) -> ExerciseTemplate:
+    """Create a test physio exercise template."""
+    template = ExerciseTemplate(
+        trainer_app_id=test_app.id,
+        name="Sentadillas",
+        discipline_type="physio",
+        field_schema={
+            "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
+            "series": {"type": "integer", "label": "Series", "required": True},
+            "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+        },
+    )
+    db_session.add(template)
+    await db_session.flush()
+    return template
+
+
+@pytest.fixture
+async def test_bmx_template(db_session: AsyncSession, test_app: TrainerApp) -> ExerciseTemplate:
+    """Create a test BMX exercise template."""
+    template = ExerciseTemplate(
+        trainer_app_id=test_app.id,
+        name="Saltos técnicos",
+        discipline_type="bmx",
+        field_schema={
+            "runs": {"type": "integer", "label": "Runs", "required": True},
+            "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+        },
+    )
+    db_session.add(template)
+    await db_session.flush()
+    return template
+
+
+@pytest.fixture
+async def test_session_exercise(
+    db_session: AsyncSession,
+    test_session: TrainingSession,
+    test_exercise_template: ExerciseTemplate,
+) -> SessionExercise:
+    """Create a test session exercise."""
+    exercise = SessionExercise(
+        session_id=test_session.id,
+        exercise_template_id=test_exercise_template.id,
+        data={"repeticiones": 12, "series": 3, "peso": 25.5},
+        order_index=0,
+    )
+    db_session.add(exercise)
+    await db_session.flush()
+    return exercise
