@@ -21,7 +21,7 @@ interface SessionModalProps {
 export const SessionModal: React.FC<SessionModalProps> = ({
     mode: initialMode,
     session,
-    groupSessions = [],
+    groupSessions,
     initialDate,
     clients,
     locations = [],
@@ -53,8 +53,9 @@ export const SessionModal: React.FC<SessionModalProps> = ({
             const date = new Date(session.scheduled_at);
 
             // Determine all client IDs involved
+            // Determine all client IDs involved
             let clientIds: number[] = [session.client_id];
-            if (groupSessions.length > 0) {
+            if (groupSessions && groupSessions.length > 0) {
                 clientIds = groupSessions.map(s => s.client_id);
             }
 
