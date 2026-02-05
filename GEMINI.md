@@ -87,7 +87,21 @@ The application follows a hierarchical structure:
 - All user-facing text in the frontend must be in **Spanish**.
 
 ## Environment Configuration
-Backend requires a `.env` file (see `.env.example`).
+
+Both backend and frontend require environment files:
+
+### Backend
+Copy `backend/.env.example` to `backend/.env` and configure:
+- Database connection URL
+- Debug mode
+- CORS origins
+- Dev auth bypass settings (for testing without Google OAuth)
+- Google OAuth credentials (for production)
+
+### Frontend
+Copy `frontend/.env.example` to `frontend/.env.local` and configure:
+- Google Maps API key
+- Dev auth bypass setting (should match backend setting)
 
 ## Important Patterns
 

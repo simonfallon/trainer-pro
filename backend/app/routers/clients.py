@@ -176,6 +176,11 @@ async def get_client_payment_balance(
     payments_result = await db.execute(payments_query)
     total_paid_through_payments = payments_result.scalar() or 0
     
+    # Get total amount paid in COP
+    amount_query = select(func.sum(Payment.amount_cop)).where(Payment.client_id == client_id)
+    amount_result = await db.execute(amount_query)
+    total_amount_paid_cop = amount_result.scalar() or 0
+    
     # Prepaid = sessions paid in payments - sessions marked as paid (that used those payments)
     # Simple model: prepaid = paid_sessions - total_sessions if positive
     prepaid_sessions = max(0, paid_sessions - total_sessions) if paid_sessions > total_sessions else 0
@@ -188,6 +193,7 @@ async def get_client_payment_balance(
         unpaid_sessions=unpaid_sessions,
         prepaid_sessions=prepaid_sessions,
         has_positive_balance=prepaid_sessions > 0,
+        total_amount_paid_cop=total_amount_paid_cop,
     )
 
 

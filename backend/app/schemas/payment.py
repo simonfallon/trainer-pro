@@ -35,3 +35,5 @@ class PaymentBalanceResponse(BaseModel):
     unpaid_sessions: int = Field(..., description="Number of unpaid sessions")
     prepaid_sessions: int = Field(..., description="Sessions paid in advance (positive balance)")
     has_positive_balance: bool = Field(..., description="True if client has prepaid sessions")
+    total_amount_paid_cop: int = Field(..., description="Total amount paid in Colombian Pesos")
+

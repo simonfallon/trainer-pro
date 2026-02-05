@@ -47,11 +47,6 @@ export default function ClientDetailPage() {
     const totalSesiones = sessions?.length ?? 0;
     const sesionsPagadas = balance?.paid_sessions ?? 0;
 
-    // Calculate payment balance from completed sessions only
-    const completedSessions = sessions?.filter(s => s.status === 'completed') ?? [];
-    const completedPaid = completedSessions.filter(s => s.is_paid).length;
-    const completedUnpaid = completedSessions.length - completedPaid;
-
     const progressPercent = balance && balance.total_sessions > 0
         ? (balance.paid_sessions / balance.total_sessions) * 100
         : 0;
@@ -269,33 +264,10 @@ export default function ClientDetailPage() {
 
                 {/* Payment Balance Card */}
                 <div className="metric-card">
-                    <div className="metric-value" style={{ fontSize: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                background: '#22c55e',
-                                flexShrink: 0,
-                            }} />
-                            <span style={{ fontSize: '1rem', fontWeight: 600 }}>
-                                {completedPaid} pagadas
-                            </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span style={{
-                                width: '10px',
-                                height: '10px',
-                                borderRadius: '50%',
-                                background: '#f59e0b',
-                                flexShrink: 0,
-                            }} />
-                            <span style={{ fontSize: '1rem', fontWeight: 600 }}>
-                                {completedUnpaid} pendientes
-                            </span>
-                        </div>
+                    <div className="metric-value" style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+                        ${(balance?.total_amount_paid_cop ?? 0).toLocaleString('es-CO')} COP
                     </div>
-                    <div className="metric-label">Balance de Pagos</div>
+                    <div className="metric-label">Total Pagado</div>
                 </div>
             </div>
 

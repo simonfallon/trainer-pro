@@ -121,6 +121,7 @@ export interface PaymentBalance {
     unpaid_sessions: number;
     prepaid_sessions: number;
     has_positive_balance: boolean;
+    total_amount_paid_cop: number;
 }
 
 // Form types
