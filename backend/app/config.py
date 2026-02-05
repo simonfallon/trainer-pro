@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     
     # Dev Auth Bypass (DEVELOPMENT ONLY - Must be False in production)
     dev_auth_bypass: bool = False
-    dev_trainer_id: str | None = None
+    dev_trainer_id: int | None = None
     
     class Config:
         env_file = ".env"

@@ -1,7 +1,6 @@
 """
 Locations API Router
 """
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[LocationResponse])
 async def list_locations(
-    trainer_id: UUID = Query(..., description="Trainer ID to filter locations"),
+    trainer_id: int = Query(..., description="Trainer ID to filter locations"),
     db: AsyncSession = Depends(get_db),
 ):
     """List all locations for a trainer."""
@@ -27,7 +26,7 @@ async def list_locations(
 
 @router.get("/{location_id}", response_model=LocationResponse)
 async def get_location(
-    location_id: UUID,
+    location_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a location by ID."""
@@ -71,7 +70,7 @@ async def create_location(
 
 @router.put("/{location_id}", response_model=LocationResponse)
 async def update_location(
-    location_id: UUID,
+    location_id: int,
     location_data: LocationUpdate,
     db: AsyncSession = Depends(get_db),
 ):
@@ -99,7 +98,7 @@ async def update_location(
 
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_location(
-    location_id: UUID,
+    location_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a location."""

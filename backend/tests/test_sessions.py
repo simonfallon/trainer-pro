@@ -23,8 +23,8 @@ class TestSessionEndpoints:
         response = await client.post(
             "/sessions",
             json={
-                "trainer_id": str(test_trainer.id),
-                "client_id": str(test_client_record.id),
+                "trainer_id": test_trainer.id,
+                "client_id": test_client_record.id,
                 "scheduled_at": scheduled_at,
                 "duration_minutes": 60,
                 "notes": "Test session",
@@ -34,7 +34,7 @@ class TestSessionEndpoints:
         
         assert response.status_code == 201
         data = response.json()
-        assert data["client_id"] == str(test_client_record.id)
+        assert data["client_id"] == test_client_record.id
         assert data["duration_minutes"] == 60
         assert data["session_doc"] == "Workout notes here"
         assert data["is_paid"] is False
@@ -45,7 +45,7 @@ class TestSessionEndpoints:
         
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == str(test_session.id)
+        assert data["id"] == test_session.id
     
     async def test_update_session_doc(self, client: AsyncClient, test_session: TrainingSession):
         """Test updating session documentation."""

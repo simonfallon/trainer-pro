@@ -1,7 +1,6 @@
 """
 Clients API Router
 """
-from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func
@@ -20,7 +19,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[ClientResponse])
 async def list_clients(
-    trainer_id: UUID = Query(..., description="Trainer ID to filter clients"),
+    trainer_id: int = Query(..., description="Trainer ID to filter clients"),
     include_deleted: bool = Query(False, description="Include soft-deleted clients"),
     db: AsyncSession = Depends(get_db),
 ):
@@ -36,7 +35,7 @@ async def list_clients(
 
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client(
-    client_id: UUID,
+    client_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a client by ID."""
@@ -79,7 +78,7 @@ async def create_client(
 
 @router.put("/{client_id}", response_model=ClientResponse)
 async def update_client(
-    client_id: UUID,
+    client_id: int,
     client_data: ClientUpdate,
     db: AsyncSession = Depends(get_db),
 ):
@@ -104,7 +103,7 @@ async def update_client(
 
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_client(
-    client_id: UUID,
+    client_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Soft delete a client."""
@@ -123,7 +122,7 @@ async def delete_client(
 
 @router.get("/{client_id}/sessions", response_model=list[SessionResponse])
 async def get_client_sessions(
-    client_id: UUID,
+    client_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get all training sessions for a specific client."""
@@ -147,7 +146,7 @@ async def get_client_sessions(
 
 @router.get("/{client_id}/payment-balance", response_model=PaymentBalanceResponse)
 async def get_client_payment_balance(
-    client_id: UUID,
+    client_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get payment balance summary for a client."""
@@ -194,7 +193,7 @@ async def get_client_payment_balance(
 
 @router.post("/{client_id}/payments", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
 async def register_client_payment(
-    client_id: UUID,
+    client_id: int,
     payment_data: PaymentCreate,
     db: AsyncSession = Depends(get_db),
 ):

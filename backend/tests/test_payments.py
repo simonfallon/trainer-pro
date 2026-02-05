@@ -4,8 +4,6 @@ Payment API Integration Tests
 import pytest
 from httpx import AsyncClient
 from datetime import datetime, timedelta
-from uuid import uuid4
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Trainer, Client, TrainingSession
@@ -43,7 +41,6 @@ class TestPaymentEndpoints:
         # Create 3 completed sessions
         for i in range(3):
             session = TrainingSession(
-                id=uuid4(),
                 trainer_id=test_trainer.id,
                 client_id=test_client_record.id,
                 scheduled_at=datetime.now() - timedelta(days=i+1),
@@ -77,7 +74,6 @@ class TestPaymentEndpoints:
         sessions = []
         for i in range(5):
             session = TrainingSession(
-                id=uuid4(),
                 trainer_id=test_trainer.id,
                 client_id=test_client_record.id,
                 scheduled_at=datetime.now() - timedelta(days=10-i),  # Oldest first
@@ -152,11 +148,11 @@ class TestPaymentEndpoints:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) >= 1
-        assert any(s["id"] == str(test_session.id) for s in data)
+        assert any(s["id"] == test_session.id for s in data)
     
     async def test_payment_balance_not_found(self, client: AsyncClient):
         """Test 404 for non-existent client payment balance."""
         response = await client.get(
-            f"/clients/{uuid4()}/payment-balance"
+            "/clients/999999/payment-balance"
         )
         assert response.status_code == 404

@@ -16,7 +16,7 @@ class TestClientEndpoints:
         response = await client.post(
             "/clients",
             json={
-                "trainer_id": str(test_trainer.id),
+                "trainer_id": test_trainer.id,
                 "name": "New Client",
                 "phone": "+57 300 111 2222",
                 "email": "newclient@test.com",
@@ -42,14 +42,13 @@ class TestClientEndpoints:
         
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == str(test_client_record.id)
+        assert data["id"] == test_client_record.id
         assert data["name"] == test_client_record.name
     
     async def test_get_client_not_found(self, client: AsyncClient):
         """Test 404 for non-existent client."""
-        from uuid import uuid4
-        response = await client.get(f"/clients/{uuid4()}")
-        
+        response = await client.get("/clients/999999")
+
         assert response.status_code == 404
     
     async def test_update_client_profile(self, client: AsyncClient, test_client_record: Client):
@@ -71,9 +70,9 @@ class TestClientEndpoints:
         """Test listing clients for a trainer."""
         response = await client.get(
             "/clients",
-            params={"trainer_id": str(test_trainer.id)},
+            params={"trainer_id": test_trainer.id},
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -87,8 +86,8 @@ class TestClientEndpoints:
         # Verify soft deleted - should not appear in list
         list_response = await client.get(
             "/clients",
-            params={"trainer_id": str(test_trainer.id)},
+            params={"trainer_id": test_trainer.id},
         )
         clients = list_response.json()
         client_ids = [c["id"] for c in clients]
-        assert str(test_client_record.id) not in client_ids
+        assert test_client_record.id not in client_ids

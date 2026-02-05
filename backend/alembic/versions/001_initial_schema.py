@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = '001'
@@ -19,13 +18,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Enable UUID extension
-    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
-    
     # Create trainers table
     op.create_table(
         'trainers',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('uuid_generate_v4()')),
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('phone', sa.String(50), nullable=False),
         sa.Column('email', sa.String(255), unique=True, nullable=True),
@@ -40,8 +36,8 @@ def upgrade() -> None:
     # Create locations table
     op.create_table(
         'locations',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('uuid_generate_v4()')),
-        sa.Column('trainer_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column('trainer_id', sa.Integer(), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('type', sa.String(20), nullable=False, server_default='other'),
         sa.Column('address_line1', sa.String(255), nullable=True),
@@ -63,11 +59,11 @@ def upgrade() -> None:
     # Create trainer_apps table
     op.create_table(
         'trainer_apps',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('uuid_generate_v4()')),
-        sa.Column('trainer_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column('trainer_id', sa.Integer(), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('theme_id', sa.String(50), nullable=False),
-        sa.Column('theme_config', postgresql.JSONB, nullable=False),
+        sa.Column('theme_config', sa.JSON(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()')),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()')),
     )
@@ -76,13 +72,13 @@ def upgrade() -> None:
     # Create clients table
     op.create_table(
         'clients',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('uuid_generate_v4()')),
-        sa.Column('trainer_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column('trainer_id', sa.Integer(), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('phone', sa.String(50), nullable=False),
         sa.Column('email', sa.String(255), nullable=True),
         sa.Column('notes', sa.Text, nullable=True),
-        sa.Column('default_location_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('locations.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('default_location_id', sa.Integer(), sa.ForeignKey('locations.id', ondelete='SET NULL'), nullable=True),
         sa.Column('google_id', sa.String(255), nullable=True),
         sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()')),
@@ -94,10 +90,10 @@ def upgrade() -> None:
     # Create training_sessions table
     op.create_table(
         'training_sessions',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('uuid_generate_v4()')),
-        sa.Column('trainer_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('client_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('location_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('locations.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column('trainer_id', sa.Integer(), sa.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('client_id', sa.Integer(), sa.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False),
+        sa.Column('location_id', sa.Integer(), sa.ForeignKey('locations.id', ondelete='SET NULL'), nullable=True),
         sa.Column('scheduled_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('duration_minutes', sa.Integer, nullable=False, server_default='60'),
         sa.Column('notes', sa.Text, nullable=True),

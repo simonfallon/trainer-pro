@@ -8,7 +8,6 @@ are rolled back after each test to maintain test isolation.
 import os
 import asyncio
 from typing import AsyncGenerator
-from uuid import uuid4
 from datetime import datetime
 
 import pytest
@@ -97,9 +96,8 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 async def test_trainer(db_session: AsyncSession) -> Trainer:
     """Create a test trainer."""
     trainer = Trainer(
-        id=uuid4(),
         name="Test Trainer",
-        email=f"trainer_{uuid4().hex[:8]}@test.com",
+        email="test_trainer@test.com",
         phone="+57 300 123 4567",
     )
     db_session.add(trainer)
@@ -111,11 +109,10 @@ async def test_trainer(db_session: AsyncSession) -> Trainer:
 async def test_client_record(db_session: AsyncSession, test_trainer: Trainer) -> Client:
     """Create a test client."""
     client = Client(
-        id=uuid4(),
         trainer_id=test_trainer.id,
         name="Test Client",
         phone="+57 300 987 6543",
-        email=f"client_{uuid4().hex[:8]}@test.com",
+        email="test_client@test.com",
         birth_date=datetime(1990, 5, 15),
         gender="M",
         height_cm=180,
@@ -134,7 +131,6 @@ async def test_session(
 ) -> TrainingSession:
     """Create a test training session."""
     session = TrainingSession(
-        id=uuid4(),
         trainer_id=test_trainer.id,
         client_id=test_client_record.id,
         scheduled_at=datetime.now(),

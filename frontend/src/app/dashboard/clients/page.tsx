@@ -48,7 +48,7 @@ export default function ClientsPage() {
         }
     };
 
-    const handleDelete = async (clientId: string) => {
+    const handleDelete = async (clientId: number) => {
         if (!confirm('¿Estás seguro de que deseas eliminar a este cliente?')) return;
 
         try {

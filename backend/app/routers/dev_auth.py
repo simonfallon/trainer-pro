@@ -57,11 +57,11 @@ async def dev_login(db: AsyncSession = Depends(get_db)):
     
     # Return same structure as Google OAuth exchange
     return {
-        "trainer_id": str(trainer.id),
+        "trainer_id": trainer.id,
         "email": trainer.email,
         "name": trainer.name,
         "is_new_user": False,  # Always false for dev trainer
         "has_app": app is not None,
-        "app_id": str(app.id) if app else None,
+        "app_id": app.id if app else None,
         "app_name": app.name if app else None,
     }

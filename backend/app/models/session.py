@@ -1,11 +1,9 @@
 """
 Training Session Model
 """
-import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 from sqlalchemy import String, DateTime, ForeignKey, Text, Integer, Boolean
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -23,23 +21,23 @@ class TrainingSession(Base):
     
     __tablename__ = "training_sessions"
     
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[int] = mapped_column(
+        Integer,
         primary_key=True,
-        default=uuid.uuid4,
+        autoincrement=True,
     )
-    trainer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    trainer_id: Mapped[int] = mapped_column(
+        Integer,
         ForeignKey("trainers.id", ondelete="CASCADE"),
         nullable=False,
     )
-    client_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    client_id: Mapped[int] = mapped_column(
+        Integer,
         ForeignKey("clients.id", ondelete="CASCADE"),
         nullable=False,
     )
-    location_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+    location_id: Mapped[int | None] = mapped_column(
+        Integer,
         ForeignKey("locations.id", ondelete="SET NULL"),
         nullable=True,
     )

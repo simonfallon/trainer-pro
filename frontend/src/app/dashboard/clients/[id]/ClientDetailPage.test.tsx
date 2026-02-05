@@ -10,9 +10,9 @@ import ClientDetailPage from './page';
 const mockRouterBack = vi.fn();
 const mockRouterPush = vi.fn();
 vi.mock('next/navigation', () => ({
-    useParams: () => ({ id: 'test-client-id' }),
+    useParams: () => ({ id: '1' }),
     useRouter: () => ({ back: mockRouterBack, push: mockRouterPush }),
-    useSearchParams: () => new URLSearchParams('app_id=test-app-id'),
+    useSearchParams: () => new URLSearchParams('app_id=1'),
 }));
 
 // Theme
@@ -62,8 +62,8 @@ vi.mock('swr', () => ({
 // ---------------------------------------------------------------------------
 
 const mockClient = {
-    id: 'test-client-id',
-    trainer_id: 'trainer-1',
+    id: 1,
+    trainer_id: 1,
     name: 'María García',
     phone: '+57 300 123 4567',
     email: 'maria@example.com',
@@ -82,9 +82,9 @@ const mockClient = {
 
 const mockSessions = [
     {
-        id: 'session-1',
-        trainer_id: 'trainer-1',
-        client_id: 'test-client-id',
+        id: 1,
+        trainer_id: 1,
+        client_id: 1,
         location_id: null,
         scheduled_at: '2026-01-20T10:00:00Z',
         duration_minutes: 60,
@@ -97,9 +97,9 @@ const mockSessions = [
         updated_at: '2026-01-20T11:00:00Z',
     },
     {
-        id: 'session-2',
-        trainer_id: 'trainer-1',
-        client_id: 'test-client-id',
+        id: 2,
+        trainer_id: 1,
+        client_id: 1,
         location_id: null,
         scheduled_at: '2026-02-03T14:00:00Z',
         duration_minutes: 45,
@@ -124,9 +124,9 @@ const mockBalance = {
 // Helper: set all three SWR keys to the happy-path defaults
 function setHappyPath() {
     mockSWRResponses = {
-        '/clients/test-client-id': { data: mockClient },
-        '/clients/test-client-id/sessions': { data: mockSessions },
-        '/clients/test-client-id/payment-balance': { data: mockBalance },
+        '/clients/1': { data: mockClient },
+        '/clients/1/sessions': { data: mockSessions },
+        '/clients/1/payment-balance': { data: mockBalance },
     };
 }
 
@@ -146,19 +146,18 @@ describe('ClientDetailPage', () => {
         expect(screen.getByText('María García')).toBeInTheDocument();
     });
 
-    // 2. Metric cards show correct values + status badge
-    it('muestra las tarjetas de métricas con valores correctos y badge "Pendiente"', () => {
+    // 2. Metric cards show correct values
+    it('muestra las tarjetas de métricas con valores correctos', () => {
         render(<ClientDetailPage />);
 
-        // Total Sesiones = 2
-        expect(screen.getByText('2')).toBeInTheDocument();
-        // Sesiones Pagadas = 1
-        expect(screen.getByText('1')).toBeInTheDocument();
-        // Labels
-        expect(screen.getByText('Total Sesiones')).toBeInTheDocument();
+        // Card 1: "Sesiones Pagadas" → paid / total = "1 / 2"
+        expect(screen.getByText('1 / 2')).toBeInTheDocument();
         expect(screen.getByText('Sesiones Pagadas')).toBeInTheDocument();
-        // Badge: unpaid > 0 and no positive balance → "Pendiente"
-        expect(screen.getByText('Pendiente')).toBeInTheDocument();
+
+        // Card 2: "Balance de Pagos" → completed-paid / completed-unpaid
+        expect(screen.getByText('1 pagadas')).toBeInTheDocument();
+        expect(screen.getByText('0 pendientes')).toBeInTheDocument();
+        expect(screen.getByText('Balance de Pagos')).toBeInTheDocument();
     });
 
     // 3. Personal info fields render
@@ -197,12 +196,12 @@ describe('ClientDetailPage', () => {
         fireEvent.click(toggle);
 
         await waitFor(() => {
-            expect(mockTogglePayment).toHaveBeenCalledWith('session-2');
+            expect(mockTogglePayment).toHaveBeenCalledWith(2);
         });
 
         await waitFor(() => {
-            expect(mockMutate).toHaveBeenCalledWith('/clients/test-client-id/sessions');
-            expect(mockMutate).toHaveBeenCalledWith('/clients/test-client-id/payment-balance');
+            expect(mockMutate).toHaveBeenCalledWith('/clients/1/sessions');
+            expect(mockMutate).toHaveBeenCalledWith('/clients/1/payment-balance');
         });
     });
 
@@ -222,7 +221,7 @@ describe('ClientDetailPage', () => {
 
     // 7. Loading state
     it('muestra "Cargando…" cuando el cliente está siendo cargado', () => {
-        mockSWRResponses['/clients/test-client-id'] = { isLoading: true };
+        mockSWRResponses['/clients/1'] = { isLoading: true };
         render(<ClientDetailPage />);
 
         expect(screen.getByText('Cargando...')).toBeInTheDocument();
@@ -230,7 +229,7 @@ describe('ClientDetailPage', () => {
 
     // 8. Error state
     it('muestra mensaje de error cuando la carga del cliente falla', () => {
-        mockSWRResponses['/clients/test-client-id'] = { error: new Error('Network error') };
+        mockSWRResponses['/clients/1'] = { error: new Error('Network error') };
         render(<ClientDetailPage />);
 
         expect(screen.getByText('Error al cargar el cliente')).toBeInTheDocument();

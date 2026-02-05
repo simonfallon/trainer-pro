@@ -26,7 +26,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (effectiveAppId) {
-            appsApi.get(effectiveAppId)
+            appsApi.get(Number(effectiveAppId))
                 .then(async (appData) => {
                     setApp(appData);
                     // Fetch trainer

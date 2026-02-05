@@ -16,7 +16,7 @@ export default function HomePage() {
     const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
-    const [createdTrainerId, setCreatedTrainerId] = useState<string | null>(null);
+    const [createdTrainerId, setCreatedTrainerId] = useState<number | null>(null);
     const searchParams = useSearchParams();
 
     useEffect(() => {
@@ -24,7 +24,7 @@ export default function HomePage() {
         const isNewUser = searchParams.get('new_user') === 'true';
 
         if (trainerId && isNewUser) {
-            setCreatedTrainerId(trainerId);
+            setCreatedTrainerId(Number(trainerId));
             setStep(2); // Phone collection step
         }
     }, [searchParams]);

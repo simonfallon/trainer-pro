@@ -1,7 +1,6 @@
 """
 Apps API Router
 """
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[AppResponse])
 async def list_apps(
-    trainer_id: UUID = Query(..., description="Trainer ID to filter apps"),
+    trainer_id: int = Query(..., description="Trainer ID to filter apps"),
     db: AsyncSession = Depends(get_db),
 ):
     """List all apps for a trainer."""
@@ -27,7 +26,7 @@ async def list_apps(
 
 @router.get("/{app_id}", response_model=AppResponse)
 async def get_app(
-    app_id: UUID,
+    app_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get an app by ID."""
@@ -63,7 +62,7 @@ async def create_app(
 
 @router.put("/{app_id}", response_model=AppResponse)
 async def update_app(
-    app_id: UUID,
+    app_id: int,
     app_data: AppUpdate,
     db: AsyncSession = Depends(get_db),
 ):

@@ -25,19 +25,19 @@ from app.models.session import TrainingSession
 from app.models.payment import Payment
 
 
-# Fixed UUIDs for consistent testing
-TRAINER_ID = "00000000-0000-0000-0000-000000000001"
-APP_ID = "00000000-0000-0000-0000-000000000002"
+# Fixed integer IDs for consistent testing
+TRAINER_ID = 1
+APP_ID = 1
 LOCATION_IDS = {
-    "gym": "00000000-0000-0000-0000-000000000011",
-    "track": "00000000-0000-0000-0000-000000000012",
-    "home": "00000000-0000-0000-0000-000000000013",
+    "gym": 1,
+    "track": 2,
+    "home": 3,
 }
 CLIENT_IDS = {
-    "client_a": "00000000-0000-0000-0000-000000000021",
-    "client_b": "00000000-0000-0000-0000-000000000022",
-    "client_c": "00000000-0000-0000-0000-000000000023",
-    "client_d": "00000000-0000-0000-0000-000000000024",
+    "client_a": 1,
+    "client_b": 2,
+    "client_c": 3,
+    "client_d": 4,
 }
 
 
@@ -343,7 +343,15 @@ async def seed_data():
         
         await db.flush()
         print(f"  Created {payments_created} payment(s)")
-        
+
+        # Reset sequences so autoincrement continues after seeded IDs
+        import sqlalchemy as sa
+        for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'training_sessions', 'payments']:
+            await db.execute(sa.text(
+                f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
+            ))
+        print("  ✓ Sequences reset")
+
         # Commit all changes
         await db.commit()
         print("\n✅ Data seeding complete!")

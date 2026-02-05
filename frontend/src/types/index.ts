@@ -3,7 +3,7 @@
  */
 
 export interface Trainer {
-    id: string;
+    id: number;
     name: string;
     phone: string;
     email: string | null;
@@ -14,8 +14,8 @@ export interface Trainer {
 }
 
 export interface TrainerApp {
-    id: string;
-    trainer_id: string;
+    id: number;
+    trainer_id: number;
     name: string;
     theme_id: string;
     theme_config: ThemeConfig;
@@ -39,8 +39,8 @@ export interface ThemeConfig {
 export type LocationType = 'trainer_base' | 'client_home' | 'gym' | 'track' | 'other';
 
 export interface Location {
-    id: string;
-    trainer_id: string;
+    id: number;
+    trainer_id: number;
     name: string;
     type: LocationType;
     address_line1: string | null;
@@ -57,13 +57,13 @@ export interface Location {
 }
 
 export interface Client {
-    id: string;
-    trainer_id: string;
+    id: number;
+    trainer_id: number;
     name: string;
     phone: string;
     email: string | null;
     notes: string | null;
-    default_location_id: string | null;
+    default_location_id: number | null;
     google_id: string | null;
     // Profile fields
     photo_url: string | null;
@@ -79,10 +79,10 @@ export interface Client {
 export type SessionStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export interface TrainingSession {
-    id: string;
-    trainer_id: string;
-    client_id: string;
-    location_id: string | null;
+    id: number;
+    trainer_id: number;
+    client_id: number;
+    location_id: number | null;
     scheduled_at: string;
     duration_minutes: number;
     notes: string | null;
@@ -105,9 +105,9 @@ export interface SessionStats {
 }
 
 export interface Payment {
-    id: string;
-    client_id: string;
-    trainer_id: string;
+    id: number;
+    client_id: number;
+    trainer_id: number;
     sessions_paid: number;
     amount_cop: number;
     payment_date: string;
@@ -132,32 +132,38 @@ export interface TrainerCreateInput {
 }
 
 export interface AppCreateInput {
-    trainer_id: string;
+    trainer_id: number;
     name: string;
     theme_id: string;
     theme_config: ThemeConfig;
 }
 
 export interface ClientCreateInput {
-    trainer_id: string;
+    trainer_id: number;
     name: string;
     phone: string;
     email?: string;
     notes?: string;
-    default_location_id?: string;
+    default_location_id?: number;
+    // Profile fields
+    photo_url?: string;
+    birth_date?: string;
+    gender?: string;
+    height_cm?: number;
+    weight_kg?: number;
 }
 
 export interface SessionCreateInput {
-    trainer_id: string;
-    client_id: string;
-    location_id?: string;
+    trainer_id: number;
+    client_id: number;
+    location_id?: number;
     scheduled_at: string;
     duration_minutes: number;
     notes?: string;
 }
 
 export interface LocationCreateInput {
-    trainer_id: string;
+    trainer_id: number;
     name: string;
     type: LocationType;
     address_line1?: string;

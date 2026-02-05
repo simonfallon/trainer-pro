@@ -2,7 +2,6 @@
 Payment Schemas
 """
 from datetime import datetime
-from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -16,9 +15,9 @@ class PaymentCreate(BaseModel):
 
 class PaymentResponse(BaseModel):
     """Schema for payment response."""
-    id: UUID
-    client_id: UUID
-    trainer_id: UUID
+    id: int
+    client_id: int
+    trainer_id: int
     sessions_paid: int
     amount_cop: int
     payment_date: datetime

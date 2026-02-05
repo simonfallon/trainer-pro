@@ -1,9 +1,9 @@
 'use client';
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import useSWR, { mutate } from 'swr';
-import { clientsApi, sessionsApi } from '@/lib/api';
+import { clientsApi, sessionsApi, uploadsApi } from '@/lib/api';
 import { useDarkStyles } from '@/hooks/useDarkStyles';
 import { formatDate } from '@/lib/dateUtils';
 import { SESSION_STATUS_LABELS } from '@/lib/labels';
@@ -19,7 +19,7 @@ export default function ClientDetailPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const clientId = params.id as string;
+    const clientId = Number(params.id);
     const appId = searchParams.get('app_id');
     const { darkStyles, theme } = useDarkStyles();
 
@@ -47,11 +47,10 @@ export default function ClientDetailPage() {
     const totalSesiones = sessions?.length ?? 0;
     const sesionsPagadas = balance?.paid_sessions ?? 0;
 
-    const statusBadge = balance?.has_positive_balance
-        ? { label: 'Prepagado', bg: theme.colors.primary, color: '#fff' }
-        : (balance?.unpaid_sessions ?? 0) > 0
-            ? { label: 'Pendiente', bg: '#f59e0b', color: '#fff' }
-            : { label: 'Al día', bg: '#22c55e', color: '#fff' };
+    // Calculate payment balance from completed sessions only
+    const completedSessions = sessions?.filter(s => s.status === 'completed') ?? [];
+    const completedPaid = completedSessions.filter(s => s.is_paid).length;
+    const completedUnpaid = completedSessions.length - completedPaid;
 
     const progressPercent = balance && balance.total_sessions > 0
         ? (balance.paid_sessions / balance.total_sessions) * 100
@@ -64,8 +63,10 @@ export default function ClientDetailPage() {
     const [showSessionModal, setShowSessionModal] = useState(false);
     const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
     const [error, setError] = useState('');
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleTogglePayment = async (sessionId: string) => {
+    const handleTogglePayment = async (sessionId: number) => {
         try {
             await sessionsApi.togglePayment(sessionId);
             mutate(`/clients/${clientId}/sessions`);
@@ -84,6 +85,36 @@ export default function ClientDetailPage() {
         } catch (err) {
             console.error('Error deleting client:', err);
             setError('Error al eliminar el cliente');
+        }
+    };
+
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            setError('Por favor selecciona una imagen válida');
+            return;
+        }
+
+        setUploadingImage(true);
+        setError('');
+
+        try {
+            // Upload image
+            const { url } = await uploadsApi.uploadImage(file);
+
+            // Update client with new photo URL
+            await clientsApi.update(clientId, { photo_url: url });
+
+            // Refresh client data
+            mutate(`/clients/${clientId}`);
+        } catch (err) {
+            console.error('Error uploading image:', err);
+            setError('Error al subir la imagen');
+        } finally {
+            setUploadingImage(false);
         }
     };
 
@@ -143,24 +174,74 @@ export default function ClientDetailPage() {
 
                 {/* Avatar + Name + Contact (compact row) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{
-                        width: '72px',
-                        height: '72px',
-                        borderRadius: '50%',
-                        background: 'rgba(255,255,255,0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        overflow: 'hidden',
-                    }}>
+                    <div
+                        style={{
+                            width: '120px',
+                            height: '120px',
+                            borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            overflow: 'hidden',
+                            position: 'relative',
+                            cursor: 'pointer',
+                        }}
+                        onClick={() => fileInputRef.current?.click()}
+                        onMouseEnter={(e) => {
+                            const overlay = e.currentTarget.querySelector('.upload-overlay') as HTMLElement;
+                            if (overlay) overlay.style.opacity = '1';
+                        }}
+                        onMouseLeave={(e) => {
+                            const overlay = e.currentTarget.querySelector('.upload-overlay') as HTMLElement;
+                            if (overlay) overlay.style.opacity = '0';
+                        }}
+                    >
                         {client.photo_url ? (
                             <img src={client.photo_url} alt={client.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
-                            <span style={{ color: 'white', fontSize: '2rem', fontWeight: 700 }}>
+                            <span style={{ color: 'white', fontSize: '2.5rem', fontWeight: 700 }}>
                                 {client.name.charAt(0).toUpperCase()}
                             </span>
                         )}
+
+                        {/* Upload overlay */}
+                        <div
+                            className="upload-overlay"
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: 'rgba(0,0,0,0.6)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                            }}
+                        >
+                            {uploadingImage ? (
+                                <span style={{ color: 'white', fontSize: '0.875rem' }}>Subiendo...</span>
+                            ) : (
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                    <circle cx="12" cy="13" r="4"></circle>
+                                </svg>
+                            )}
+                        </div>
+
+                        {/* Hidden file input */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            style={{ display: 'none' }}
+                        />
                     </div>
 
                     <div>
@@ -178,36 +259,43 @@ export default function ClientDetailPage() {
                 STATS BAR
                 ============================================================ */}
             <div className="metrics-grid" style={{ marginBottom: '1.5rem' }}>
+                {/* Combined Sessions Card */}
                 <div className="metric-card">
-                    <div className="metric-value">{totalSesiones}</div>
-                    <div className="metric-label">Total Sesiones</div>
+                    <div className="metric-value">
+                        {sesionsPagadas} / {totalSesiones}
+                    </div>
+                    <div className="metric-label">Sesiones Pagadas</div>
                 </div>
 
+                {/* Payment Balance Card */}
                 <div className="metric-card">
-                    <div className="metric-value">{sesionsPagadas}</div>
-                    <div className="metric-label">
-                        Sesiones Pagadas
-                        <span style={{ opacity: 0.7, fontSize: '0.75rem', display: 'block', marginTop: '0.15rem' }}>
-                            de {totalSesiones}
-                        </span>
+                    <div className="metric-value" style={{ fontSize: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '50%',
+                                background: '#22c55e',
+                                flexShrink: 0,
+                            }} />
+                            <span style={{ fontSize: '1rem', fontWeight: 600 }}>
+                                {completedPaid} pagadas
+                            </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{
+                                width: '10px',
+                                height: '10px',
+                                borderRadius: '50%',
+                                background: '#f59e0b',
+                                flexShrink: 0,
+                            }} />
+                            <span style={{ fontSize: '1rem', fontWeight: 600 }}>
+                                {completedUnpaid} pendientes
+                            </span>
+                        </div>
                     </div>
-                </div>
-
-                <div className="metric-card">
-                    <div className="metric-value" style={{ fontSize: '1.5rem' }}>
-                        <span style={{
-                            display: 'inline-block',
-                            background: statusBadge.bg,
-                            color: statusBadge.color,
-                            padding: '0.3rem 0.85rem',
-                            borderRadius: '999px',
-                            fontSize: '0.875rem',
-                            fontWeight: 600,
-                        }}>
-                            {statusBadge.label}
-                        </span>
-                    </div>
-                    <div className="metric-label">Estado</div>
+                    <div className="metric-label">Balance de Pagos</div>
                 </div>
             </div>
 
@@ -362,8 +450,8 @@ export default function ClientDetailPage() {
                                                         borderRadius: '50%',
                                                         background:
                                                             session.status === 'completed' ? '#22c55e' :
-                                                            session.status === 'scheduled' ? theme.colors.primary :
-                                                            '#9ca3af',
+                                                                session.status === 'scheduled' ? theme.colors.primary :
+                                                                    '#9ca3af',
                                                         flexShrink: 0,
                                                     }} />
                                                     {SESSION_STATUS_LABELS[session.status] || session.status}

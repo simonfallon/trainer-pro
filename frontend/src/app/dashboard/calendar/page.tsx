@@ -67,7 +67,7 @@ export default function CalendarPage() {
         mutate(sessionsKey);
     };
 
-    const handleStatusChange = async (sessionId: string, newStatus: string) => {
+    const handleStatusChange = async (sessionId: number, newStatus: string) => {
         await sessionsApi.update(sessionId, { status: newStatus });
         mutate(sessionsKey);
     };

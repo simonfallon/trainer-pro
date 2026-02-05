@@ -14,7 +14,7 @@ interface SessionModalProps {
     locations?: Location[];
     onClose: () => void;
     onSave: (data: any) => Promise<void>;
-    onStatusChange: (sessionId: string, status: string) => Promise<void>;
+    onStatusChange: (sessionId: number, status: string) => Promise<void>;
 }
 
 export const SessionModal: React.FC<SessionModalProps> = ({
@@ -49,8 +49,8 @@ export const SessionModal: React.FC<SessionModalProps> = ({
         } else if ((mode === 'edit' || mode === 'view') && session) {
             const date = new Date(session.scheduled_at);
             setFormData({
-                client_id: session.client_id,
-                location_id: session.location_id || '',
+                client_id: String(session.client_id),
+                location_id: session.location_id != null ? String(session.location_id) : '',
                 date: format(date, 'yyyy-MM-dd'),
                 time: format(date, 'HH:mm'),
                 duration_minutes: session.duration_minutes,
@@ -87,7 +87,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
         }
     };
 
-    const clientName = clients.find(c => c.id === formData.client_id)?.name || 'Cliente';
+    const clientName = clients.find(c => String(c.id) === formData.client_id)?.name || 'Cliente';
 
     if (mode === 'view' && session) {
         return (

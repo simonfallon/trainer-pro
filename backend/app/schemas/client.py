@@ -2,7 +2,6 @@
 Client Schemas
 """
 from datetime import datetime
-from uuid import UUID
 from pydantic import BaseModel, Field, computed_field
 
 
@@ -12,7 +11,7 @@ class ClientBase(BaseModel):
     phone: str = Field(..., min_length=1, max_length=50)
     email: str | None = Field(None, max_length=255)
     notes: str | None = None
-    default_location_id: UUID | None = None
+    default_location_id: int | None = None
     # Profile fields
     photo_url: str | None = Field(None, max_length=500)
     birth_date: datetime | None = None
@@ -23,7 +22,7 @@ class ClientBase(BaseModel):
 
 class ClientCreate(ClientBase):
     """Schema for creating a client."""
-    trainer_id: UUID
+    trainer_id: int
 
 
 class ClientUpdate(BaseModel):
@@ -32,7 +31,7 @@ class ClientUpdate(BaseModel):
     phone: str | None = Field(None, min_length=1, max_length=50)
     email: str | None = Field(None, max_length=255)
     notes: str | None = None
-    default_location_id: UUID | None = None
+    default_location_id: int | None = None
     # Profile fields
     photo_url: str | None = Field(None, max_length=500)
     birth_date: datetime | None = None
@@ -43,8 +42,8 @@ class ClientUpdate(BaseModel):
 
 class ClientResponse(ClientBase):
     """Schema for client response."""
-    id: UUID
-    trainer_id: UUID
+    id: int
+    trainer_id: int
     google_id: str | None = None
     created_at: datetime
     updated_at: datetime

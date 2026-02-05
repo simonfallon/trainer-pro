@@ -1,11 +1,9 @@
 """
 Location Model
 """
-import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, DateTime, ForeignKey, Numeric, Enum
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, DateTime, ForeignKey, Numeric, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -25,13 +23,13 @@ class Location(Base):
     
     __tablename__ = "locations"
     
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    id: Mapped[int] = mapped_column(
+        Integer,
         primary_key=True,
-        default=uuid.uuid4,
+        autoincrement=True,
     )
-    trainer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+    trainer_id: Mapped[int] = mapped_column(
+        Integer,
         ForeignKey("trainers.id", ondelete="CASCADE"),
         nullable=False,
     )

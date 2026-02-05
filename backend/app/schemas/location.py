@@ -2,7 +2,6 @@
 Location Schemas
 """
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -33,7 +32,7 @@ class LocationBase(BaseModel):
 
 class LocationCreate(LocationBase):
     """Schema for creating a location."""
-    trainer_id: UUID
+    trainer_id: int
 
 
 class LocationUpdate(BaseModel):
@@ -53,8 +52,8 @@ class LocationUpdate(BaseModel):
 
 class LocationResponse(LocationBase):
     """Schema for location response."""
-    id: UUID
-    trainer_id: UUID
+    id: int
+    trainer_id: int
     created_at: datetime
     updated_at: datetime
     

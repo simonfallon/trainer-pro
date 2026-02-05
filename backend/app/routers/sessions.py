@@ -1,7 +1,6 @@
 """
 Sessions API Router
 """
-from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, func
@@ -22,7 +21,7 @@ router = APIRouter()
 
 @router.get("", response_model=list[SessionResponse])
 async def list_sessions(
-    trainer_id: UUID = Query(..., description="Trainer ID to filter sessions"),
+    trainer_id: int = Query(..., description="Trainer ID to filter sessions"),
     start_date: datetime | None = Query(None, description="Filter sessions from this date"),
     end_date: datetime | None = Query(None, description="Filter sessions until this date"),
     status_filter: str | None = Query(None, description="Filter by session status"),
@@ -45,7 +44,7 @@ async def list_sessions(
 
 @router.get("/stats", response_model=SessionStats)
 async def get_session_stats(
-    trainer_id: UUID = Query(..., description="Trainer ID to get stats for"),
+    trainer_id: int = Query(..., description="Trainer ID to get stats for"),
     start_date: datetime | None = Query(None, description="Stats from this date"),
     end_date: datetime | None = Query(None, description="Stats until this date"),
     db: AsyncSession = Depends(get_db),
@@ -89,7 +88,7 @@ async def get_session_stats(
 
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
-    session_id: UUID,
+    session_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a session by ID."""
@@ -131,7 +130,7 @@ async def create_session(
 
 @router.put("/{session_id}", response_model=SessionResponse)
 async def update_session(
-    session_id: UUID,
+    session_id: int,
     session_data: SessionUpdate,
     db: AsyncSession = Depends(get_db),
 ):
@@ -161,7 +160,7 @@ async def update_session(
 
 @router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session(
-    session_id: UUID,
+    session_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel a session (soft cancel via status change)."""
@@ -182,7 +181,7 @@ async def delete_session(
 
 @router.patch("/{session_id}/payment", response_model=SessionResponse)
 async def toggle_session_payment(
-    session_id: UUID,
+    session_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Toggle the payment status of a session."""

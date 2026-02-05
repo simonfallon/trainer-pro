@@ -2,7 +2,6 @@
 App Schemas
 """
 from datetime import datetime
-from uuid import UUID
 from pydantic import BaseModel, Field
 
 
@@ -21,7 +20,7 @@ class AppBase(BaseModel):
 
 class AppCreate(AppBase):
     """Schema for creating an app."""
-    trainer_id: UUID
+    trainer_id: int
 
 
 class AppUpdate(BaseModel):
@@ -33,8 +32,8 @@ class AppUpdate(BaseModel):
 
 class AppResponse(AppBase):
     """Schema for app response."""
-    id: UUID
-    trainer_id: UUID
+    id: int
+    trainer_id: int
     created_at: datetime
     updated_at: datetime
     

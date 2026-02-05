@@ -2,7 +2,6 @@
 Session Schemas
 """
 from datetime import datetime
-from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, Field
 
@@ -16,8 +15,8 @@ class SessionStatus(str, Enum):
 
 class SessionBase(BaseModel):
     """Base session schema."""
-    client_id: UUID
-    location_id: UUID | None = None
+    client_id: int
+    location_id: int | None = None
     scheduled_at: datetime
     duration_minutes: int = Field(default=60, ge=15, le=480)
     notes: str | None = None
@@ -27,13 +26,13 @@ class SessionBase(BaseModel):
 
 class SessionCreate(SessionBase):
     """Schema for creating a session."""
-    trainer_id: UUID
+    trainer_id: int
 
 
 class SessionUpdate(BaseModel):
     """Schema for updating a session."""
-    client_id: UUID | None = None
-    location_id: UUID | None = None
+    client_id: int | None = None
+    location_id: int | None = None
     scheduled_at: datetime | None = None
     duration_minutes: int | None = Field(None, ge=15, le=480)
     notes: str | None = None
@@ -43,8 +42,8 @@ class SessionUpdate(BaseModel):
 
 class SessionResponse(SessionBase):
     """Schema for session response."""
-    id: UUID
-    trainer_id: UUID
+    id: int
+    trainer_id: int
     is_paid: bool = False
     paid_at: datetime | None = None
     created_at: datetime

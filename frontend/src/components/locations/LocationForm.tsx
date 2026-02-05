@@ -7,9 +7,9 @@ import { LocationPicker } from '../LocationPicker';
 
 interface LocationFormProps {
     location?: Location;
-    trainerId: string;
+    trainerId: number;
     onClose: () => void;
-    onSave: (data: LocationCreateInput | (Partial<Location> & { id: string })) => Promise<void>;
+    onSave: (data: LocationCreateInput | (Partial<Location> & { id: number })) => Promise<void>;
 }
 
 export const LocationForm: React.FC<LocationFormProps> = ({

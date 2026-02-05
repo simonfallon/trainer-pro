@@ -2,7 +2,6 @@
 Trainer Schemas
 """
 from datetime import datetime
-from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -57,7 +56,7 @@ class TrainerUpdate(BaseModel):
 
 class TrainerResponse(TrainerBase):
     """Schema for trainer response."""
-    id: UUID
+    id: int
     google_id: str | None = None
     logo_url: str | None = None
     created_at: datetime

@@ -10,7 +10,7 @@ export function PaymentModal({
     onClose,
     onSuccess,
 }: {
-    clientId: string;
+    clientId: number;
     clientName: string;
     onClose: () => void;
     onSuccess: () => void;

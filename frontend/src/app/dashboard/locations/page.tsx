@@ -21,7 +21,7 @@ export default function LocationsPage() {
         () => locationsApi.list(trainerId)
     );
 
-    const handleSave = async (data: LocationCreateInput | (Partial<Location> & { id: string })) => {
+    const handleSave = async (data: LocationCreateInput | (Partial<Location> & { id: number })) => {
         if ('id' in data) {
             const { id, ...updateData } = data;
             await locationsApi.update(id, updateData);
@@ -42,7 +42,7 @@ export default function LocationsPage() {
         mutate(`/locations-${trainerId}`);
     };
 
-    const handleDeleteLocation = async (locationId: string) => {
+    const handleDeleteLocation = async (locationId: number) => {
         if (!confirm('¿Estás seguro de eliminar esta ubicación?')) return;
 
         await locationsApi.delete(locationId);

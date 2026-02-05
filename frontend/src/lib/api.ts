@@ -43,13 +43,13 @@ export const fetcher = <T>(url: string): Promise<T> => fetchAPI<T>(url);
 
 // Trainers API
 export const trainersApi = {
-    get: (id: string) => fetchAPI<import('@/types').Trainer>(`/trainers/${id}`),
+    get: (id: number) => fetchAPI<import('@/types').Trainer>(`/trainers/${id}`),
     create: (data: import('@/types').TrainerCreateInput) =>
         fetchAPI<import('@/types').Trainer>('/trainers', {
             method: 'POST',
             body: JSON.stringify(data),
         }),
-    update: (id: string, data: Partial<import('@/types').TrainerCreateInput>) =>
+    update: (id: number, data: Partial<import('@/types').TrainerCreateInput>) =>
         fetchAPI<import('@/types').Trainer>(`/trainers/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data),
@@ -58,9 +58,9 @@ export const trainersApi = {
 
 // Apps API
 export const appsApi = {
-    list: (trainerId: string) =>
+    list: (trainerId: number) =>
         fetchAPI<import('@/types').TrainerApp[]>(`/apps?trainer_id=${trainerId}`),
-    get: (id: string) => fetchAPI<import('@/types').TrainerApp>(`/apps/${id}`),
+    get: (id: number) => fetchAPI<import('@/types').TrainerApp>(`/apps/${id}`),
     create: (data: import('@/types').AppCreateInput) =>
         fetchAPI<import('@/types').TrainerApp>('/apps', {
             method: 'POST',
@@ -70,48 +70,48 @@ export const appsApi = {
 
 // Locations API
 export const locationsApi = {
-    list: (trainerId: string) =>
+    list: (trainerId: number) =>
         fetchAPI<import('@/types').Location[]>(`/locations?trainer_id=${trainerId}`),
-    get: (id: string) => fetchAPI<import('@/types').Location>(`/locations/${id}`),
+    get: (id: number) => fetchAPI<import('@/types').Location>(`/locations/${id}`),
     create: (data: Omit<import('@/types').Location, 'id' | 'created_at' | 'updated_at'>) =>
         fetchAPI<import('@/types').Location>('/locations', {
             method: 'POST',
             body: JSON.stringify(data),
         }),
-    update: (id: string, data: Partial<import('@/types').Location>) =>
+    update: (id: number, data: Partial<import('@/types').Location>) =>
         fetchAPI<import('@/types').Location>(`/locations/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data),
         }),
-    delete: (id: string) =>
+    delete: (id: number) =>
         fetchAPI<void>(`/locations/${id}`, { method: 'DELETE' }),
 };
 
 // Clients API
 export const clientsApi = {
-    list: (trainerId: string, includeDeleted = false) =>
+    list: (trainerId: number, includeDeleted = false) =>
         fetchAPI<import('@/types').Client[]>(
             `/clients?trainer_id=${trainerId}&include_deleted=${includeDeleted}`
         ),
-    get: (id: string) => fetchAPI<import('@/types').Client>(`/clients/${id}`),
+    get: (id: number) => fetchAPI<import('@/types').Client>(`/clients/${id}`),
     create: (data: import('@/types').ClientCreateInput) =>
         fetchAPI<import('@/types').Client>('/clients', {
             method: 'POST',
             body: JSON.stringify(data),
         }),
-    update: (id: string, data: Partial<import('@/types').ClientCreateInput>) =>
+    update: (id: number, data: Partial<import('@/types').ClientCreateInput>) =>
         fetchAPI<import('@/types').Client>(`/clients/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data),
         }),
-    delete: (id: string) =>
+    delete: (id: number) =>
         fetchAPI<void>(`/clients/${id}`, { method: 'DELETE' }),
     // New endpoints for client detail page
-    getSessions: (clientId: string) =>
+    getSessions: (clientId: number) =>
         fetchAPI<import('@/types').TrainingSession[]>(`/clients/${clientId}/sessions`),
-    getPaymentBalance: (clientId: string) =>
+    getPaymentBalance: (clientId: number) =>
         fetchAPI<import('@/types').PaymentBalance>(`/clients/${clientId}/payment-balance`),
-    registerPayment: (clientId: string, data: { sessions_paid: number; amount_cop: number; notes?: string }) =>
+    registerPayment: (clientId: number, data: { sessions_paid: number; amount_cop: number; notes?: string }) =>
         fetchAPI<import('@/types').Payment>(`/clients/${clientId}/payments`, {
             method: 'POST',
             body: JSON.stringify(data),
@@ -120,14 +120,14 @@ export const clientsApi = {
 
 // Sessions API
 export const sessionsApi = {
-    list: (trainerId: string, startDate?: string, endDate?: string) => {
+    list: (trainerId: number, startDate?: string, endDate?: string) => {
         let url = `/sessions?trainer_id=${trainerId}`;
         if (startDate) url += `&start_date=${startDate}`;
         if (endDate) url += `&end_date=${endDate}`;
         return fetchAPI<import('@/types').TrainingSession[]>(url);
     },
-    get: (id: string) => fetchAPI<import('@/types').TrainingSession>(`/sessions/${id}`),
-    getStats: (trainerId: string, startDate?: string, endDate?: string) => {
+    get: (id: number) => fetchAPI<import('@/types').TrainingSession>(`/sessions/${id}`),
+    getStats: (trainerId: number, startDate?: string, endDate?: string) => {
         let url = `/sessions/stats?trainer_id=${trainerId}`;
         if (startDate) url += `&start_date=${startDate}`;
         if (endDate) url += `&end_date=${endDate}`;
@@ -138,15 +138,15 @@ export const sessionsApi = {
             method: 'POST',
             body: JSON.stringify(data),
         }),
-    update: (id: string, data: Partial<import('@/types').SessionCreateInput & { status: string; session_doc?: string }>) =>
+    update: (id: number, data: Partial<import('@/types').SessionCreateInput & { status: string; session_doc?: string }>) =>
         fetchAPI<import('@/types').TrainingSession>(`/sessions/${id}`, {
             method: 'PUT',
             body: JSON.stringify(data),
         }),
-    delete: (id: string) =>
+    delete: (id: number) =>
         fetchAPI<void>(`/sessions/${id}`, { method: 'DELETE' }),
     // Toggle payment status
-    togglePayment: (id: string) =>
+    togglePayment: (id: number) =>
         fetchAPI<import('@/types').TrainingSession>(`/sessions/${id}/payment`, {
             method: 'PATCH',
         }),
@@ -177,12 +177,12 @@ export const authApi = {
     getGoogleAuthUrl: () => fetchAPI<{ url: string; state: string }>('/auth/google/url'),
     exchangeGoogleCode: (code: string) =>
         fetchAPI<{
-            trainer_id: string;
+            trainer_id: number;
             email: string;
             name: string;
             is_new_user: boolean;
             has_app: boolean;
-            app_id?: string;
+            app_id?: number;
             app_name?: string;
         }>('/auth/google/exchange', {
             method: 'POST',
@@ -194,12 +194,12 @@ export const authApi = {
 export const devAuthApi = {
     login: () =>
         fetchAPI<{
-            trainer_id: string;
+            trainer_id: number;
             email: string;
             name: string;
             is_new_user: boolean;
             has_app: boolean;
-            app_id?: string;
+            app_id?: number;
             app_name?: string;
         }>('/dev/login', {
             method: 'POST',

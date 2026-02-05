@@ -1,7 +1,6 @@
 """
 Trainers API Router
 """
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +14,7 @@ router = APIRouter()
 
 @router.get("/{trainer_id}", response_model=TrainerResponse)
 async def get_trainer(
-    trainer_id: UUID,
+    trainer_id: int,
     db: AsyncSession = Depends(get_db),
 ):
     """Get a trainer by ID."""
@@ -51,7 +50,7 @@ async def create_trainer(
 
 @router.put("/{trainer_id}", response_model=TrainerResponse)
 async def update_trainer(
-    trainer_id: UUID,
+    trainer_id: int,
     trainer_data: TrainerUpdate,
     db: AsyncSession = Depends(get_db),
 ):
