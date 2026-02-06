@@ -177,15 +177,14 @@ Backend requires a `.env` file (see `.env.example`):
 ## Important Patterns
 
 ### Database Migrations
-### Database Migrations
-- **IMPORTANT**: Do NOT create new migrations for schema changes during this phase.
-- **Rule**: Drop and recreate the database instead of migrating.
-- **Workflow**:
+- **Standard Workflow**: Use Alembic migrations for all schema changes
+- **Creating Migrations**:
   1. Modify models in `app/models/`
-  2. Reset DB: `docker-compose down -v` then `docker-compose up -d postgres`
-  3. Run migrations: `cd backend && alembic upgrade head`
-  4. Seed data: `cd backend && poetry run python scripts/seed_data.py`
-- (Legacy: `alembic revision ...` - avoid usage)
+  2. Generate migration: `cd backend && poetry run alembic revision --autogenerate -m "description"`
+  3. Review the generated migration file in `alembic/versions/`
+  4. Apply migration: `poetry run alembic upgrade head`
+- **Test Database**: Ensure test database has latest schema with `DATABASE_URL=postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test poetry run alembic upgrade head`
+- **Seeding Data**: After migrations, seed test data with `poetry run python scripts/seed_data.py`
 
 ### File Uploads
 - Upload endpoint: `/uploads`
