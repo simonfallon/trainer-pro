@@ -145,6 +145,25 @@ async def test_session(
 
 
 @pytest.fixture
+async def test_session_group(
+    db_session: AsyncSession,
+    test_trainer: Trainer,
+) -> "SessionGroup":
+    """Create a test session group."""
+    from app.models import SessionGroup
+    
+    group = SessionGroup(
+        trainer_id=test_trainer.id,
+        scheduled_at=datetime.now(),
+        duration_minutes=90,
+        notes="Test group session",
+    )
+    db_session.add(group)
+    await db_session.flush()
+    return group
+
+
+@pytest.fixture
 async def test_app(db_session: AsyncSession, test_trainer: Trainer) -> TrainerApp:
     """Create a test trainer app."""
     app = TrainerApp(

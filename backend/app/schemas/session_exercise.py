@@ -35,6 +35,7 @@ class SessionExerciseResponse(SessionExerciseBase):
     id: int
     session_id: int | None
     session_group_id: int | None
+    exercise_set_id: int | None
     created_at: datetime
     
     class Config:

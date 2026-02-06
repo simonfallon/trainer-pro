@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import trainers, apps, locations, clients, sessions, exercise_templates, session_exercises
+from app.routers import trainers, apps, locations, clients, sessions, exercise_templates, session_exercises, exercise_sets
 
 settings = get_settings()
 
@@ -42,6 +42,7 @@ app.include_router(clients.router, prefix="/clients", tags=["clients"])
 app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 app.include_router(exercise_templates.router, prefix="/exercise-templates", tags=["exercise-templates"])
 app.include_router(session_exercises.router, tags=["session-exercises"])
+app.include_router(exercise_sets.router, prefix="/exercise-sets", tags=["exercise-sets"])
 
 from app.routers import auth
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

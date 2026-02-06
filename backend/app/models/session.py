@@ -111,6 +111,12 @@ class TrainingSession(Base):
         cascade="all, delete-orphan",
         order_by="SessionExercise.order_index",
     )
+    exercise_sets: Mapped[list["ExerciseSet"]] = relationship(
+        "ExerciseSet",
+        back_populates="session",
+        cascade="all, delete-orphan",
+        order_by="ExerciseSet.order_index",
+    )
     
     def __repr__(self) -> str:
         return f"<TrainingSession {self.scheduled_at} ({self.status})>"
@@ -122,3 +128,4 @@ from app.models.client import Client
 from app.models.location import Location
 from app.models.session_group import SessionGroup
 from app.models.session_exercise import SessionExercise
+from app.models.exercise_set import ExerciseSet

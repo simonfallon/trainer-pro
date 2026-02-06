@@ -38,6 +38,13 @@ class SessionExercise(Base):
         nullable=True,
     )
     
+    # Link to exercise set (nullable - exercises can exist independently or within a set)
+    exercise_set_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("exercise_sets.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    
     # For ad-hoc exercises not based on a template
     custom_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     
@@ -67,6 +74,10 @@ class SessionExercise(Base):
         "ExerciseTemplate",
         back_populates="session_exercises",
     )
+    exercise_set: Mapped["ExerciseSet | None"] = relationship(
+        "ExerciseSet",
+        back_populates="exercises",
+    )
     
     # Ensure either session_id or session_group_id is set, but not both
     __table_args__ = (
@@ -79,10 +90,12 @@ class SessionExercise(Base):
     
     def __repr__(self) -> str:
         name = self.custom_name if self.custom_name else f"Template#{self.exercise_template_id}"
-        return f"<SessionExercise {name}>"
+        set_info = f" in Set#{self.exercise_set_id}" if self.exercise_set_id else ""
+        return f"<SessionExercise {name}{set_info}>"
 
 
 # Import for type hints
 from app.models.session import TrainingSession
 from app.models.session_group import SessionGroup
 from app.models.exercise_template import ExerciseTemplate
+from app.models.exercise_set import ExerciseSet
