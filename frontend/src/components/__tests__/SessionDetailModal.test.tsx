@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { SessionDetailModal } from '../SessionDetailModal';
-import { sessionsApi } from '@/lib/api';
+import { sessionsApi, exerciseSetsApi } from '@/lib/api';
 import type { TrainingSession, SessionExercise } from '@/types';
 
 // Mock the API
@@ -10,6 +10,12 @@ vi.mock('@/lib/api', () => ({
     sessionsApi: {
         getExercises: vi.fn(),
         update: vi.fn(),
+    },
+    exerciseSetsApi: {
+        listForSession: vi.fn().mockResolvedValue([]),
+        createForSession: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
     },
 }));
 
@@ -63,6 +69,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: null,
+                exercise_set_id: null,
                 custom_name: 'Toma de Tiempo BMX',
                 data: {
                     lap_times_ms: [65432, 63210, 64890],
@@ -110,6 +117,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: null,
+                exercise_set_id: null,
                 custom_name: 'Toma de Tiempo BMX',
                 data: {
                     lap_times_ms: [65000, 64000],
@@ -124,6 +132,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: null,
+                exercise_set_id: null,
                 custom_name: 'Toma de Tiempo BMX',
                 data: {
                     lap_times_ms: [62000, 63000, 61000],
@@ -168,6 +177,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: null,
+                exercise_set_id: null,
                 custom_name: 'Toma de Tiempo BMX',
                 data: {
                     lap_times_ms: [60000, 60000, 60000], // 1:00.00 each
@@ -208,6 +218,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: 5,
+                exercise_set_id: null,
                 custom_name: 'Some Other Exercise',
                 data: {
                     reps: 10,
@@ -261,6 +272,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: null,
+                exercise_set_id: null,
                 custom_name: 'Toma de Tiempo BMX',
                 data: {
                     lap_times_ms: [65000],
@@ -299,6 +311,7 @@ describe('SessionDetailModal', () => {
                 session_id: 1,
                 session_group_id: null,
                 exercise_template_id: null,
+                exercise_set_id: null,
                 custom_name: 'Toma de Tiempo BMX',
                 data: {
                     lap_times_ms: [5432], // 0:05.43
@@ -332,7 +345,7 @@ describe('SessionDetailModal', () => {
     it('should handle exercises fetch error gracefully', async () => {
         vi.mocked(sessionsApi.getExercises).mockRejectedValue(new Error('Network error'));
 
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
         render(
             <SessionDetailModal
@@ -347,7 +360,7 @@ describe('SessionDetailModal', () => {
         });
 
         // Error should be logged
-        expect(consoleSpy).toHaveBeenCalledWith('Error fetching exercises:', expect.any(Error));
+        expect(consoleSpy).toHaveBeenCalledWith('Error fetching data:', expect.any(Error));
 
         // Modal should still render without lap times section
         expect(screen.queryByText('Tiempos Registrados')).not.toBeInTheDocument();

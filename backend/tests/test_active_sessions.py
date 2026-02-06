@@ -33,7 +33,7 @@ async def test_start_multi_client_session(client: AsyncClient, test_trainer, tes
             "notes": "Multi-client test session",
         },
     )
-    assert session_response.status_code == 200
+    assert session_response.status_code == 201
     session_data = session_response.json()
 
     # Should return a SessionGroup

@@ -18,7 +18,7 @@ class TestSessionExerciseEndpoints:
     ):
         """Test adding an exercise to a session using a template."""
         response = await client.post(
-            f"/session-exercises/sessions/{test_session.id}/exercises",
+            f"/sessions/{test_session.id}/exercises",
             json={
                 "exercise_template_id": test_exercise_template.id,
                 "data": {"repeticiones": 10, "series": 3, "peso": 20.0},
@@ -36,7 +36,7 @@ class TestSessionExerciseEndpoints:
     async def test_create_session_exercise_custom(self, client: AsyncClient, test_session: TrainingSession):
         """Test adding a custom exercise without a template."""
         response = await client.post(
-            f"/session-exercises/sessions/{test_session.id}/exercises",
+            f"/sessions/{test_session.id}/exercises",
             json={
                 "custom_name": "Ejercicio personalizado",
                 "data": {"notas": "Ejercicio especial para este cliente"},
@@ -57,7 +57,7 @@ class TestSessionExerciseEndpoints:
         test_session_exercise: SessionExercise,
     ):
         """Test listing all exercises for a session."""
-        response = await client.get(f"/session-exercises/sessions/{test_session.id}/exercises")
+        response = await client.get(f"/sessions/{test_session.id}/exercises")
         
         assert response.status_code == 200
         data = response.json()
@@ -67,7 +67,7 @@ class TestSessionExerciseEndpoints:
     
     async def test_get_session_exercises_not_found(self, client: AsyncClient):
         """Test 404 when session doesn't exist."""
-        response = await client.get("/session-exercises/sessions/999999/exercises")
+        response = await client.get("/sessions/999999/exercises")
         
         assert response.status_code == 404
     
@@ -78,7 +78,7 @@ class TestSessionExerciseEndpoints:
     ):
         """Test updating an exercise's data."""
         response = await client.put(
-            f"/session-exercises/{test_session_exercise.id}",
+            f"/{test_session_exercise.id}",
             json={
                 "data": {"repeticiones": 15, "series": 4, "peso": 30.0},
                 "order_index": 2,
@@ -98,11 +98,11 @@ class TestSessionExerciseEndpoints:
     ):
         """Test deleting an exercise."""
         exercise_id = test_session_exercise.id
-        response = await client.delete(f"/session-exercises/{exercise_id}")
+        response = await client.delete(f"/{exercise_id}")
         assert response.status_code == 204
         
         # Verify it's deleted by checking the list
-        list_response = await client.get(f"/session-exercises/sessions/{test_session.id}/exercises")
+        list_response = await client.get(f"/sessions/{test_session.id}/exercises")
         exercises = list_response.json()
         assert not any(e["id"] == exercise_id for e in exercises)
     
@@ -117,7 +117,7 @@ class TestSessionExerciseEndpoints:
         exercise_ids = []
         for i in range(3):
             response = await client.post(
-                f"/session-exercises/sessions/{test_session.id}/exercises",
+                f"/sessions/{test_session.id}/exercises",
                 json={
                     "exercise_template_id": test_exercise_template.id,
                     "data": {"repeticiones": 10 + i, "series": 3},
@@ -130,7 +130,7 @@ class TestSessionExerciseEndpoints:
         # Reorder: reverse the order
         reversed_ids = list(reversed(exercise_ids))
         response = await client.put(
-            f"/session-exercises/sessions/{test_session.id}/exercises/reorder",
+            f"/sessions/{test_session.id}/exercises/reorder",
             json={"exercise_ids": reversed_ids},
         )
         
@@ -157,7 +157,7 @@ class TestSessionExerciseEndpoints:
         
         # Create exercise using template
         await client.post(
-            f"/session-exercises/sessions/{test_session.id}/exercises",
+            f"/sessions/{test_session.id}/exercises",
             json={
                 "exercise_template_id": test_exercise_template.id,
                 "data": {"repeticiones": 10, "series": 3},
@@ -183,7 +183,7 @@ class TestSessionExerciseEndpoints:
         # But we can verify that the path param correctly sets the session_id
         
         response = await client.post(
-            f"/session-exercises/sessions/{test_session.id}/exercises",
+            f"/sessions/{test_session.id}/exercises",
             json={
                 "exercise_template_id": test_exercise_template.id,
                 "data": {"repeticiones": 10, "series": 3},
