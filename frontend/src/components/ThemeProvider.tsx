@@ -18,11 +18,12 @@ export const useTheme = () => useContext(ThemeContext);
 interface ThemeProviderProps {
     children: React.ReactNode;
     initialThemeId?: string;
+    initialTheme?: Theme;
 }
 
-export function ThemeProvider({ children, initialThemeId }: ThemeProviderProps) {
+export function ThemeProvider({ children, initialThemeId, initialTheme }: ThemeProviderProps) {
     const [theme, setThemeState] = useState<Theme>(
-        initialThemeId ? getThemeById(initialThemeId) || defaultTheme : defaultTheme
+        initialTheme || (initialThemeId ? getThemeById(initialThemeId) || defaultTheme : defaultTheme)
     );
 
     const setTheme = (themeId: string) => {

@@ -259,6 +259,18 @@ export const devAuthApi = {
         }>(`/dev/login/${discipline}`, {
             method: 'POST',
         }),
+    onboarding: () =>
+        fetchAPI<{
+            trainer_id: number;
+            email: string;
+            name: string;
+            is_new_user: boolean;
+            has_app: boolean;
+            app_id?: number;
+            app_name?: string;
+        }>('/dev/onboarding', {
+            method: 'POST',
+        }),
 };
 
 // Exercise Templates API
@@ -267,6 +279,10 @@ export const exerciseTemplatesApi = {
         fetchAPI<import('@/types').ExerciseTemplate[]>(`/exercise-templates?trainer_app_id=${trainerAppId}`),
     get: (id: number) =>
         fetchAPI<import('@/types').ExerciseTemplate>(`/exercise-templates/${id}`),
+    autocomplete: (trainerAppId: number, query: string, limit = 10) =>
+        fetchAPI<import('@/types').ExerciseTemplate[]>(
+            `/exercise-templates/autocomplete?trainer_app_id=${trainerAppId}&q=${encodeURIComponent(query)}&limit=${limit}`
+        ),
     create: (data: import('@/types').ExerciseTemplateCreateInput) =>
         fetchAPI<import('@/types').ExerciseTemplate>('/exercise-templates', {
             method: 'POST',
@@ -280,3 +296,36 @@ export const exerciseTemplatesApi = {
     delete: (id: number) =>
         fetchAPI<void>(`/exercise-templates/${id}`, { method: 'DELETE' }),
 };
+
+// Exercise Sets API
+export const exerciseSetsApi = {
+    listForSession: (sessionId: number) =>
+        fetchAPI<import('@/types').ExerciseSet[]>(`/exercise-sets/sessions/${sessionId}/sets`),
+    listForGroup: (groupId: number) =>
+        fetchAPI<import('@/types').ExerciseSet[]>(`/exercise-sets/session-groups/${groupId}/sets`),
+    get: (setId: number) =>
+        fetchAPI<import('@/types').ExerciseSet>(`/exercise-sets/${setId}`),
+    createForSession: (sessionId: number, data: import('@/types').ExerciseSetCreateInput) =>
+        fetchAPI<import('@/types').ExerciseSet>(`/exercise-sets/sessions/${sessionId}`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    createForGroup: (groupId: number, data: import('@/types').ExerciseSetCreateInput) =>
+        fetchAPI<import('@/types').ExerciseSet>(`/exercise-sets/session-groups/${groupId}`, {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    update: (setId: number, data: import('@/types').ExerciseSetUpdateInput) =>
+        fetchAPI<import('@/types').ExerciseSet>(`/exercise-sets/${setId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+    delete: (setId: number) =>
+        fetchAPI<void>(`/exercise-sets/${setId}`, { method: 'DELETE' }),
+    reorder: (setId: number, exerciseIds: number[]) =>
+        fetchAPI<import('@/types').SessionExercise[]>(`/exercise-sets/${setId}/reorder`, {
+            method: 'PUT',
+            body: JSON.stringify({ exercise_ids: exerciseIds }),
+        }),
+};
+

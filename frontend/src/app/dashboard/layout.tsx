@@ -86,8 +86,22 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         return pathname.startsWith(basePath);
     };
 
+    // For custom logo themes, pass the full theme config directly
+    const themeConfig = app.theme_id === 'custom-logo'
+        ? {
+            id: 'custom-logo',
+            name: 'custom logo',
+            description: 'Tema personalizado basado en el logo',
+            colors: app.theme_config.colors,
+            fonts: app.theme_config.fonts,
+          }
+        : undefined;
+
     return (
-        <ThemeProvider initialThemeId={app.theme_id}>
+        <ThemeProvider
+            initialThemeId={app.theme_id}
+            initialTheme={themeConfig}
+        >
             <DashboardAppProvider app={app} trainer={trainer}>
                 <div style={{ minHeight: '100vh' }}>
                     {/* Header */}

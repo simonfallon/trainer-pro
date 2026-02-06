@@ -267,9 +267,51 @@ export interface SessionExercise {
     session_id: number | null;
     session_group_id: number | null;
     exercise_template_id: number | null;
+    exercise_set_id: number | null;
     custom_name: string | null;
     data: Record<string, any>;
     order_index: number;
     created_at: string;
 }
+
+export interface ExerciseSet {
+    id: number;
+    session_id: number | null;
+    session_group_id: number | null;
+    name: string;
+    series: number;
+    order_index: number;
+    exercises: SessionExercise[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ExerciseInSetInput {
+    exercise_template_id?: number;
+    custom_name?: string;
+    data: Record<string, any>;
+    order_index?: number;
+}
+
+export interface ExerciseSetCreateInput {
+    name: string;
+    series: number;
+    exercises: ExerciseInSetInput[];
+}
+
+export interface ExerciseSetUpdateInput {
+    name?: string;
+    series?: number;
+}
+
+// For custom exercises not yet in templates
+export interface PendingCustomExercise {
+    name: string;
+    field_schema: Record<string, {
+        type: 'number' | 'array' | 'duration' | 'text';
+        label: string;
+        required: boolean;
+    }>;
+}
+
 

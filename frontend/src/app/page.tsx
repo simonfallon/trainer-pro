@@ -7,13 +7,22 @@ import { trainersApi, appsApi, uploadsApi, devAuthApi } from '@/lib/api';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { ImageUpload } from '@/components/ImageUpload';
+import LogoColorPicker from '@/components/LogoColorPicker';
 
 export default function HomePage() {
     const [step, setStep] = useState(1);
     const [phone, setPhone] = useState('');
     const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [uploadedLogoUrl, setUploadedLogoUrl] = useState<string | null>(null);
     const [appName, setAppName] = useState('');
     const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
+    const [themeMode, setThemeMode] = useState<'templates' | 'logo'>('templates');
+    const [customColors, setCustomColors] = useState<{
+        primary: string;
+        secondary: string;
+        background: string;
+        text: string;
+    } | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [createdTrainerId, setCreatedTrainerId] = useState<number | null>(null);
@@ -42,6 +51,7 @@ export default function HomePage() {
             if (logoFile) {
                 const uploadResult = await uploadsApi.uploadImage(logoFile);
                 logoUrl = uploadResult.url;
+                setUploadedLogoUrl(logoUrl); // Store for Step 3
             }
 
             await trainersApi.update(createdTrainerId, {
@@ -58,20 +68,44 @@ export default function HomePage() {
 
     const handleAppSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!appName.trim() || !selectedTheme || !createdTrainerId) return;
+
+        // Validation
+        if (!appName.trim() || !createdTrainerId) return;
+
+        if (themeMode === 'templates' && !selectedTheme) {
+            setError('Por favor selecciona un tema');
+            return;
+        }
+
+        if (themeMode === 'logo' && !customColors) {
+            setError('Por favor selecciona los colores de tu logo');
+            return;
+        }
 
         setIsSubmitting(true);
         setError('');
 
         try {
+            // Prepare theme data based on mode
+            const themeId = themeMode === 'logo' ? 'custom-logo' : selectedTheme!.id;
+            const themeConfig = themeMode === 'logo'
+                ? {
+                    colors: customColors!,
+                    fonts: {
+                        heading: 'DejaVu Sans Bold, sans-serif',
+                        body: 'DejaVu Sans, sans-serif'
+                    }
+                }
+                : {
+                    colors: selectedTheme!.colors,
+                    fonts: selectedTheme!.fonts,
+                };
+
             const app = await appsApi.create({
                 trainer_id: createdTrainerId,
                 name: appName.trim(),
-                theme_id: selectedTheme.id,
-                theme_config: {
-                    colors: selectedTheme.colors,
-                    fonts: selectedTheme.fonts,
-                },
+                theme_id: themeId,
+                theme_config: themeConfig,
             });
             // Redirect to dashboard
             window.location.href = `/dashboard?app_id=${app.id}`;
@@ -128,55 +162,94 @@ export default function HomePage() {
 
                                 {process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === 'true' && (
                                     <>
-                                        <div style={{ margin: '1rem 0', textAlign: 'center', color: 'var(--color-secondary)' }}>
+                                        <div style={{ margin: '1.5rem 0', textAlign: 'center', color: 'var(--color-secondary)' }}>
                                             — o —
                                         </div>
-                                        <div style={{ display: 'flex', gap: '1rem' }}>
+
+                                        {/* Fast Login Section */}
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--color-secondary)', marginBottom: '0.5rem', textAlign: 'center' }}>
+                                                Acceso Rápido (con datos existentes)
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '1rem' }}>
+                                                <button
+                                                    onClick={async () => {
+                                                        setIsSubmitting(true);
+                                                        setError('');
+                                                        try {
+                                                            const response = await devAuthApi.loginDiscipline('bmx');
+                                                            if (response.has_app && response.app_id) {
+                                                                window.location.href = `/dashboard?app_id=${response.app_id}`;
+                                                            } else {
+                                                                alert('BMX trainer has no app. Run seed script.');
+                                                            }
+                                                        } catch (err) {
+                                                            setError(err instanceof Error ? err.message : 'Error en dev login');
+                                                        } finally {
+                                                            setIsSubmitting(false);
+                                                        }
+                                                    }}
+                                                    disabled={isSubmitting}
+                                                    className="btn btn-secondary"
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    🚴 {isSubmitting ? 'Cargando...' : 'BMX'}
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        setIsSubmitting(true);
+                                                        setError('');
+                                                        try {
+                                                            const response = await devAuthApi.loginDiscipline('physio');
+                                                            if (response.has_app && response.app_id) {
+                                                                window.location.href = `/dashboard?app_id=${response.app_id}`;
+                                                            } else {
+                                                                alert('Physio trainer has no app. Run seed script.');
+                                                            }
+                                                        } catch (err) {
+                                                            setError(err instanceof Error ? err.message : 'Error en dev login');
+                                                        } finally {
+                                                            setIsSubmitting(false);
+                                                        }
+                                                    }}
+                                                    disabled={isSubmitting}
+                                                    className="btn btn-secondary"
+                                                    style={{ flex: 1 }}
+                                                >
+                                                    💪 {isSubmitting ? 'Cargando...' : 'Physio'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Test Onboarding Flow */}
+                                        <div>
+                                            <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--color-secondary)', marginBottom: '0.5rem', textAlign: 'center' }}>
+                                                Probar Flujo Completo (subir logo, seleccionar colores)
+                                            </div>
                                             <button
                                                 onClick={async () => {
                                                     setIsSubmitting(true);
                                                     setError('');
                                                     try {
-                                                        const response = await devAuthApi.loginDiscipline('bmx');
-                                                        if (response.has_app && response.app_id) {
-                                                            window.location.href = `/dashboard?app_id=${response.app_id}`;
-                                                        } else {
-                                                            alert('BMX trainer has no app. Run seed script.');
-                                                        }
+                                                        const response = await devAuthApi.onboarding();
+                                                        setCreatedTrainerId(response.trainer_id);
+                                                        setStep(2); // Go to phone + logo step
                                                     } catch (err) {
-                                                        setError(err instanceof Error ? err.message : 'Error en dev login');
+                                                        setError(err instanceof Error ? err.message : 'Error en dev onboarding');
                                                     } finally {
                                                         setIsSubmitting(false);
                                                     }
                                                 }}
                                                 disabled={isSubmitting}
-                                                className="btn btn-secondary"
-                                                style={{ flex: 1 }}
-                                            >
-                                                🚴 {isSubmitting ? 'Cargando...' : 'Dev Login (BMX)'}
-                                            </button>
-                                            <button
-                                                onClick={async () => {
-                                                    setIsSubmitting(true);
-                                                    setError('');
-                                                    try {
-                                                        const response = await devAuthApi.loginDiscipline('physio');
-                                                        if (response.has_app && response.app_id) {
-                                                            window.location.href = `/dashboard?app_id=${response.app_id}`;
-                                                        } else {
-                                                            alert('Physio trainer has no app. Run seed script.');
-                                                        }
-                                                    } catch (err) {
-                                                        setError(err instanceof Error ? err.message : 'Error en dev login');
-                                                    } finally {
-                                                        setIsSubmitting(false);
-                                                    }
+                                                className="btn"
+                                                style={{
+                                                    width: '100%',
+                                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                                    color: 'white',
+                                                    border: 'none'
                                                 }}
-                                                disabled={isSubmitting}
-                                                className="btn btn-secondary"
-                                                style={{ flex: 1 }}
                                             >
-                                                💪 {isSubmitting ? 'Cargando...' : 'Dev Login (Physio)'}
+                                                🎨 {isSubmitting ? 'Cargando...' : 'Probar Onboarding Completo'}
                                             </button>
                                         </div>
                                     </>
@@ -270,27 +343,75 @@ export default function HomePage() {
 
                                 <div className="form-group">
                                     <label className="form-label">Elige un Tema *</label>
-                                    <div className="theme-grid">
-                                        {themes.map((theme) => (
-                                            <div
-                                                key={theme.id}
-                                                className={`theme-card ${selectedTheme?.id === theme.id ? 'selected' : ''}`}
-                                                onClick={() => setSelectedTheme(theme)}
-                                            >
-                                                <div className="theme-preview">
-                                                    <div
-                                                        className="theme-preview-primary"
-                                                        style={{ backgroundColor: theme.colors.primary }}
-                                                    />
-                                                    <div
-                                                        className="theme-preview-secondary"
-                                                        style={{ backgroundColor: theme.colors.secondary }}
-                                                    />
-                                                </div>
-                                                <div className="theme-name">{theme.name}</div>
-                                            </div>
-                                        ))}
+
+                                    {/* Tab Navigation */}
+                                    <div className="tab-nav" style={{ marginBottom: '1.5rem' }}>
+                                        <button
+                                            type="button"
+                                            className={`tab-link ${themeMode === 'templates' ? 'active' : ''}`}
+                                            onClick={() => setThemeMode('templates')}
+                                        >
+                                            Temas Predefinidos
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`tab-link ${themeMode === 'logo' ? 'active' : ''}`}
+                                            onClick={() => setThemeMode('logo')}
+                                            disabled={!logoFile && !uploadedLogoUrl}
+                                        >
+                                            Crear desde Logo
+                                        </button>
                                     </div>
+
+                                    {/* Templates Mode */}
+                                    {themeMode === 'templates' && (
+                                        <div className="theme-grid">
+                                            {themes.map((theme) => (
+                                                <div
+                                                    key={theme.id}
+                                                    className={`theme-card ${selectedTheme?.id === theme.id ? 'selected' : ''}`}
+                                                    onClick={() => setSelectedTheme(theme)}
+                                                >
+                                                    <div className="theme-preview">
+                                                        <div
+                                                            className="theme-preview-primary"
+                                                            style={{ backgroundColor: theme.colors.primary }}
+                                                        />
+                                                        <div
+                                                            className="theme-preview-secondary"
+                                                            style={{ backgroundColor: theme.colors.secondary }}
+                                                        />
+                                                    </div>
+                                                    <div className="theme-name">{theme.name}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Logo Mode */}
+                                    {themeMode === 'logo' && (
+                                        <>
+                                            {(logoFile || uploadedLogoUrl) ? (
+                                                <LogoColorPicker
+                                                    logoUrl={logoFile ? URL.createObjectURL(logoFile) : uploadedLogoUrl!}
+                                                    onColorsSelected={(colors) => setCustomColors(colors)}
+                                                    onColorsCleared={() => setCustomColors(null)}
+                                                    onCancel={() => setThemeMode('templates')}
+                                                />
+                                            ) : (
+                                                <div className="empty-state">
+                                                    <p>Para crear un tema desde tu logo, sube tu logo en el paso anterior</p>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary"
+                                                        onClick={() => setStep(2)}
+                                                    >
+                                                        Volver al Paso 2
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
 
                                 {error && (
@@ -310,7 +431,12 @@ export default function HomePage() {
                                         type="submit"
                                         className="btn btn-primary"
                                         style={{ flex: 1 }}
-                                        disabled={isSubmitting || !appName.trim() || !selectedTheme}
+                                        disabled={
+                                            isSubmitting ||
+                                            !appName.trim() ||
+                                            (themeMode === 'templates' && !selectedTheme) ||
+                                            (themeMode === 'logo' && !customColors)
+                                        }
                                     >
                                         {isSubmitting ? 'Creando...' : 'Crear Aplicación'}
                                     </button>

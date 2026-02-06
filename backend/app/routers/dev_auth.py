@@ -67,6 +67,61 @@ async def dev_login(db: AsyncSession = Depends(get_db)):
     }
 
 
+@router.post("/dev/onboarding")
+async def dev_onboarding(db: AsyncSession = Depends(get_db)):
+    """
+    DEV ONLY: Create/return a test trainer WITHOUT an app for testing onboarding flow.
+
+    This endpoint is ONLY available when DEV_AUTH_BYPASS=true.
+    Returns a trainer with is_new_user=true and has_app=false to trigger onboarding.
+
+    Security: Returns 404 if dev auth is disabled.
+    """
+    # CRITICAL: Fail closed if dev auth is not explicitly enabled
+    if not settings.dev_auth_bypass:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    # Look for or create a test trainer for onboarding
+    test_email = "test-onboarding@trainer.dev"
+
+    result = await db.execute(
+        select(Trainer).where(Trainer.email == test_email)
+    )
+    trainer = result.scalar_one_or_none()
+
+    if not trainer:
+        # Create fresh test trainer
+        trainer = Trainer(
+            email=test_email,
+            name="Test Onboarding User",
+            google_id="dev-onboarding-test",
+            discipline_type="test",  # Generic test discipline
+        )
+        db.add(trainer)
+        await db.commit()
+        await db.refresh(trainer)
+    else:
+        # Clear existing app if any to allow re-testing
+        await db.execute(
+            TrainerApp.__table__.delete().where(TrainerApp.trainer_id == trainer.id)
+        )
+        # Reset trainer fields for fresh onboarding
+        trainer.phone = None
+        trainer.logo_url = None
+        await db.commit()
+
+    # Return structure that triggers onboarding (Step 2)
+    return {
+        "trainer_id": trainer.id,
+        "email": trainer.email,
+        "name": trainer.name,
+        "is_new_user": True,  # This triggers onboarding flow
+        "has_app": False,
+        "app_id": None,
+        "app_name": None,
+    }
+
+
 @router.post("/dev/login/{discipline}")
 async def dev_login_discipline(discipline: str, db: AsyncSession = Depends(get_db)):
     """

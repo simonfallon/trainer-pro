@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { sessionsApi, clientsApi } from '@/lib/api';
+import { sessionsApi, clientsApi, exerciseSetsApi } from '@/lib/api';
 import { useDashboardApp } from '@/hooks/useDashboardApp';
 import { NotesModal } from '@/components/session/NotesModal';
 import { StopwatchModal } from '@/components/session/StopwatchModal';
-import type { TrainingSession, SessionGroup, Client } from '@/types';
+import { ExerciseSetDisplay } from '@/components/ExerciseSetDisplay';
+import { ExerciseSetForm } from '@/components/ExerciseSetForm';
+import type { TrainingSession, SessionGroup, Client, ExerciseSet } from '@/types';
 
 export default function ActiveSessionPage() {
     const { app } = useDashboardApp();
@@ -17,6 +19,9 @@ export default function ActiveSessionPage() {
     const [loading, setLoading] = useState(true);
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [stopwatchClient, setStopwatchClient] = useState<Client | null>(null);
+    const [exerciseSets, setExerciseSets] = useState<ExerciseSet[]>([]);
+    const [showSetForm, setShowSetForm] = useState(false);
+    const [editingSet, setEditingSet] = useState<ExerciseSet | undefined>(undefined);
 
     useEffect(() => {
         loadActiveSession();
@@ -41,6 +46,11 @@ export default function ActiveSessionPage() {
             const allClients = await clientsApi.list(app.trainer_id);
             const sessionClients = allClients.filter(c => clientIds.includes(c.id));
             setClients(sessionClients);
+
+            // Load exercise sets
+            const sessionId = isSessionGroup(session) ? session.sessions[0].id : session.id;
+            const sets = await exerciseSetsApi.listForSession(sessionId);
+            setExerciseSets(sets);
         } catch (error) {
             console.error('Error loading active session:', error);
             alert('Error al cargar la sesión activa');
@@ -153,12 +163,13 @@ export default function ActiveSessionPage() {
             <div className="card" style={{ marginBottom: '2rem' }}>
                 <h3 style={{ marginBottom: '1.5rem' }}>Clientes en la Sesión</h3>
                 <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
                     gap: '2rem'
                 }}>
                     {clients.map((client) => (
-                        <div key={client.id} style={{ textAlign: 'center' }}>
+                        <div key={client.id} style={{ textAlign: 'center', width: '250px' }}>
                             {/* Avatar */}
                             <div style={{
                                 width: '120px',
@@ -194,7 +205,7 @@ export default function ActiveSessionPage() {
                             {/* Action Buttons */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <button
-                                    className="btn btn-secondary"
+                                    className="btn btn-primary"
                                     style={{ width: '100%', fontSize: '0.875rem' }}
                                     onClick={() => setSelectedClient(client)}
                                 >
@@ -213,6 +224,42 @@ export default function ActiveSessionPage() {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* Exercise Sets Section */}
+            <div className="card" style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h3 style={{ margin: 0 }}>Circuitos de Ejercicios</h3>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                            setEditingSet(undefined);
+                            setShowSetForm(true);
+                        }}
+                        style={{ fontSize: '0.875rem' }}
+                    >
+                        + Crear Circuito
+                    </button>
+                </div>
+                <ExerciseSetDisplay
+                    sets={exerciseSets}
+                    onEdit={(set) => {
+                        setEditingSet(set);
+                        setShowSetForm(true);
+                    }}
+                    onDelete={async (setId) => {
+                        try {
+                            await exerciseSetsApi.delete(setId);
+                            // Refresh sets
+                            const sessionId = isSessionGroup(activeSession!) ? activeSession!.sessions[0].id : activeSession!.id;
+                            const sets = await exerciseSetsApi.listForSession(sessionId);
+                            setExerciseSets(sets);
+                        } catch (err) {
+                            console.error('Error deleting set:', err);
+                            alert('Error al eliminar el circuito');
+                        }
+                    }}
+                />
             </div>
 
             {/* End Session Button */}
@@ -260,6 +307,43 @@ export default function ActiveSessionPage() {
                     onSave={() => {
                         // Optionally reload session after saving lap times
                         loadActiveSession();
+                    }}
+                />
+            )}
+
+            {/* Exercise Set Form Modal */}
+            {showSetForm && activeSession && (
+                <ExerciseSetForm
+                    sessionId={isSessionGroup(activeSession) ? activeSession.sessions[0].id : activeSession.id}
+                    existingSet={editingSet}
+                    onSave={async (data) => {
+                        try {
+                            const sessionId = isSessionGroup(activeSession) ? activeSession.sessions[0].id : activeSession.id;
+
+                            if (editingSet) {
+                                // Update existing set
+                                await exerciseSetsApi.update(editingSet.id, {
+                                    name: data.name,
+                                    series: data.series
+                                });
+                            } else {
+                                // Create new set
+                                await exerciseSetsApi.createForSession(sessionId, data);
+                            }
+
+                            // Refresh sets
+                            const sets = await exerciseSetsApi.listForSession(sessionId);
+                            setExerciseSets(sets);
+                            setShowSetForm(false);
+                            setEditingSet(undefined);
+                        } catch (err) {
+                            console.error('Error saving exercise set:', err);
+                            throw err; // Re-throw to let form handle the error
+                        }
+                    }}
+                    onCancel={() => {
+                        setShowSetForm(false);
+                        setEditingSet(undefined);
                     }}
                 />
             )}
