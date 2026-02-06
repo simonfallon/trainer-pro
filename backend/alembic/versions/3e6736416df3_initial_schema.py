@@ -1,8 +1,8 @@
-"""initial schema with exercises
+"""initial_schema
 
-Revision ID: f949ccc003b0
+Revision ID: 3e6736416df3
 Revises: 
-Create Date: 2026-02-05 17:19:33.957280
+Create Date: 2026-02-05 23:06:33.564508
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f949ccc003b0'
+revision: str = '3e6736416df3'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -30,6 +30,7 @@ def upgrade() -> None:
     sa.Column('google_access_token', sa.String(), nullable=True),
     sa.Column('token_expiry', sa.DateTime(timezone=True), nullable=True),
     sa.Column('logo_url', sa.String(length=255), nullable=True),
+    sa.Column('discipline_type', sa.String(length=50), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
     sa.PrimaryKeyConstraint('id'),

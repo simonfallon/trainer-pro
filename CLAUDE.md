@@ -56,6 +56,42 @@ npm run start   # Production server
 npm run lint    # Run ESLint
 ```
 
+### Testing
+
+**Backend Tests (pytest)**
+```bash
+cd backend
+
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_clients.py
+
+# Run with verbose output
+pytest -v
+
+# Run tests with coverage
+pytest --cov=app
+
+# Note: Tests require a PostgreSQL test database
+# Default: postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test
+# Override with: TEST_DATABASE_URL=<your-url> pytest
+```
+
+**Frontend Tests (Vitest)**
+```bash
+cd frontend
+
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:agent
+
+# Note: Tests use custom TMPDIR to avoid permission issues
+```
+
 ## Architecture
 
 ### Backend Structure
@@ -87,11 +123,23 @@ Key directories:
 The application follows a hierarchical structure:
 - **Trainer**: The main user entity (professional trainer)
   - Has many **TrainerApps**: Different disciplines/apps (e.g., BMX, Running, Physio)
+    - Each TrainerApp has many **ExerciseTemplates**: Reusable exercise definitions with flexible field schemas
   - Has many **Locations**: Training venues
   - Has many **Clients**: Athletes/patients being trained
-  - Has many **TrainingSessions**: Scheduled training sessions
+  - Has many **TrainingSessions**: Scheduled training sessions (individual or group)
+    - Each session has many **SessionExercises**: Actual exercises performed, linked to templates or ad-hoc
+    - Sessions can have **Payments**: Track payment status and amounts
+  - Has many **SessionGroups**: Group training sessions with multiple clients
 
-All primary keys use UUIDs. All models have `created_at` and `updated_at` timestamps with timezone awareness.
+**Exercise System Pattern**:
+- **ExerciseTemplate**: Defines reusable exercises per discipline with custom `field_schema` (JSONB)
+  - Example physio schema: `{"repeticiones": "int", "series": "int", "peso": "float"}`
+  - Example BMX schema: `{"runs": "int", "duracion_total": "duration"}`
+- **SessionExercise**: Actual exercise instances with flexible `data` field (JSONB) matching the template schema
+  - Can be template-based or ad-hoc (custom_name without template)
+  - Has XOR constraint: must belong to either `session_id` OR `session_group_id`, not both
+
+All primary keys use UUIDs or auto-incrementing integers (depending on the model). All models have `created_at` and `updated_at` timestamps with timezone awareness.
 
 ### Database Session Pattern
 The backend uses async SQLAlchemy sessions with automatic transaction management:
@@ -109,12 +157,34 @@ Backend requires a `.env` file (see `.env.example`):
 - `DEBUG`: Enable debug mode and SQL query logging
 - `CORS_ORIGINS`: Comma-separated list of allowed origins
 
+## Authentication
+
+### Google OAuth 2.0
+- Production authentication uses Google OAuth with scopes for email, profile, and Google Calendar
+- Authorization flow: GET `/auth/google/url` → user authorizes → POST `/auth/google/exchange` with code
+- Tokens (access + refresh) stored in Trainer model for future Google Calendar integration
+- Configuration requires `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in backend/.env
+
+### Dev Auth Bypass (Development Only)
+- **CRITICAL**: Only for local development and E2E testing, NEVER in production
+- Enable with `DEV_AUTH_BYPASS=true` and `DEV_TRAINER_ID=<uuid>` in backend/.env
+- Frontend: Set `NEXT_PUBLIC_DEV_AUTH_BYPASS=true` in frontend/.env.local
+- Endpoints:
+  - `POST /auth/dev/login`: Login as configured dev trainer
+  - `POST /auth/dev/login/{discipline}`: Login as specific discipline trainer (bmx/physio)
+- Seed test data: `cd backend && poetry run python scripts/seed_data.py`
+
 ## Important Patterns
 
 ### Database Migrations
-- Always create migrations after modifying models: `alembic revision --autogenerate -m "description"`
-- Review generated migrations before applying
-- Run migrations before starting the server: `alembic upgrade head`
+### Database Migrations
+- **IMPORTANT**: Do NOT create new migrations for schema changes during this phase.
+- **Rule**: Drop and recreate the database instead of migrating.
+- **Workflow**:
+  1. Modify models in `app/models/`
+  2. Reset DB: `docker-compose down -v` then `docker-compose up -d postgres`
+  3. Seed data: `poetry run python scripts/seed_data.py`
+- (Legacy: `alembic revision ...` - avoid usage)
 
 ### File Uploads
 - Upload endpoint: `/uploads`
@@ -131,6 +201,24 @@ Each router module (e.g., `trainers.py`, `clients.py`) follows this pattern:
 - API base URL should point to `http://localhost:8000` in development
 - Use SWR for data fetching and caching
 - TypeScript types should match backend Pydantic schemas
+
+### Testing Patterns
+
+**Backend Integration Tests**
+- Use pytest with async support (`asyncio_mode = auto`)
+- Tests run against real PostgreSQL test database (not mocked)
+- Each test runs in a transaction that's rolled back after completion
+- Shared fixtures in `conftest.py`:
+  - `db_session`: Isolated database session per test
+  - `client`: HTTP client for API testing
+  - Factory fixtures: `test_trainer`, `test_client_record`, `test_session`, `test_app`, etc.
+- Test database URL: Override with `TEST_DATABASE_URL` environment variable
+
+**Frontend Unit Tests**
+- Use Vitest with jsdom environment
+- React Testing Library for component tests
+- Custom TMPDIR configuration to avoid permission issues
+- Path alias: `@/` maps to `src/`
 
 ## Agent Workflows
 

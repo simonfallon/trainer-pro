@@ -9,6 +9,7 @@ export interface Trainer {
     email: string | null;
     google_id: string | null;
     logo_url: string | null;
+    discipline_type: string;
     created_at: string;
     updated_at: string;
 }
@@ -137,6 +138,21 @@ export interface PaymentBalance {
     total_amount_paid_cop: number;
 }
 
+export interface ExerciseTemplate {
+    id: number;
+    trainer_app_id: number;
+    name: string;
+    discipline_type: string;
+    field_schema: Record<string, {
+        type: 'number' | 'array' | 'integer' | 'float' | 'duration' | 'text'; // integer/float for backward compatibility
+        label: string;
+        required: boolean;
+    }>;
+    usage_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
 // Form types
 export interface TrainerCreateInput {
     name: string;
@@ -198,5 +214,26 @@ export interface LocationCreateInput {
     latitude?: number;
     longitude?: number;
     google_place_id?: string;
+}
+
+export interface ExerciseTemplateCreateInput {
+    trainer_app_id: number;
+    name: string;
+    discipline_type: string;
+    field_schema?: Record<string, {
+        type: 'number' | 'array' | 'duration' | 'text';
+        label: string;
+        required: boolean;
+    }>;
+}
+
+export interface ExerciseTemplateUpdateInput {
+    name?: string;
+    discipline_type?: string;
+    field_schema?: Record<string, {
+        type: 'number' | 'array' | 'duration' | 'text';
+        label: string;
+        required: boolean;
+    }>;
 }
 

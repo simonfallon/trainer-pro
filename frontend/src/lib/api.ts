@@ -229,3 +229,23 @@ export const devAuthApi = {
             method: 'POST',
         }),
 };
+
+// Exercise Templates API
+export const exerciseTemplatesApi = {
+    list: (trainerAppId: number) =>
+        fetchAPI<import('@/types').ExerciseTemplate[]>(`/exercise-templates?trainer_app_id=${trainerAppId}`),
+    get: (id: number) =>
+        fetchAPI<import('@/types').ExerciseTemplate>(`/exercise-templates/${id}`),
+    create: (data: import('@/types').ExerciseTemplateCreateInput) =>
+        fetchAPI<import('@/types').ExerciseTemplate>('/exercise-templates', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    update: (id: number, data: import('@/types').ExerciseTemplateUpdateInput) =>
+        fetchAPI<import('@/types').ExerciseTemplate>(`/exercise-templates/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        }),
+    delete: (id: number) =>
+        fetchAPI<void>(`/exercise-templates/${id}`, { method: 'DELETE' }),
+};
