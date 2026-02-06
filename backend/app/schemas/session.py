@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class SessionStatus(str, Enum):
     """Training session status."""
     SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
@@ -18,6 +19,7 @@ class SessionBase(BaseModel):
     client_id: int
     location_id: int | None = None
     scheduled_at: datetime
+    started_at: datetime | None = None
     duration_minutes: int = Field(default=60, ge=15, le=480)
     notes: str | None = None
     status: SessionStatus = Field(default=SessionStatus.SCHEDULED)
@@ -84,6 +86,38 @@ class SessionGroupResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     sessions: list[SessionResponse] = []
-    
+
     class Config:
         from_attributes = True
+
+
+class StartActiveSessionRequest(BaseModel):
+    """Schema for starting an active session."""
+    session_id: int | None = None
+    trainer_id: int
+    client_ids: list[int] = Field(..., min_length=1)
+    duration_minutes: int = Field(default=60, ge=15, le=480)
+    location_id: int | None = None
+    notes: str | None = None
+
+
+class ActiveSessionResponse(BaseModel):
+    """Response for active session - could be single session or group."""
+    session: SessionResponse | None = None
+    session_group: SessionGroupResponse | None = None
+    clients: list = []  # Will be populated from the session(s)
+    started_at: datetime
+    duration_minutes: int
+
+
+class ClientNotesRequest(BaseModel):
+    """Request for saving client notes during session."""
+    client_id: int
+    notes: str
+
+
+class LapTimesRequest(BaseModel):
+    """Request for saving BMX lap times."""
+    client_id: int
+    lap_times_ms: list[int] = Field(..., min_length=1)
+    total_duration_ms: int

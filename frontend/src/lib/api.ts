@@ -162,6 +162,37 @@ export const sessionsApi = {
         if (endDate) url += `&end_date=${endDate}`;
         return fetchAPI<import('@/types').SessionGroup[]>(url);
     },
+    // Active session methods
+    getCurrent: (trainerId: number, toleranceMinutes: number = 15) =>
+        fetchAPI<import('@/types').TrainingSession | null>(
+            `/sessions/current?trainer_id=${trainerId}&tolerance_minutes=${toleranceMinutes}`
+        ),
+    getActive: (trainerId: number) =>
+        fetchAPI<import('@/types').TrainingSession | import('@/types').SessionGroup | null>(
+            `/sessions/active?trainer_id=${trainerId}`
+        ),
+    startActive: (data: import('@/types').StartSessionRequest) =>
+        fetchAPI<import('@/types').TrainingSession | import('@/types').SessionGroup>('/sessions/active/start', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    saveClientNotes: (sessionId: number, clientId: number, notes: string) =>
+        fetchAPI<import('@/types').TrainingSession>(`/sessions/${sessionId}/client-notes`, {
+            method: 'PATCH',
+            body: JSON.stringify({ client_id: clientId, notes }),
+        }),
+    saveLapTimes: (sessionId: number, clientId: number, lapTimesMs: number[], totalDurationMs: number) =>
+        fetchAPI(`/sessions/${sessionId}/lap-times`, {
+            method: 'POST',
+            body: JSON.stringify({
+                client_id: clientId,
+                lap_times_ms: lapTimesMs,
+                total_duration_ms: totalDurationMs,
+            }),
+        }),
+    // Session exercises
+    getExercises: (sessionId: number) =>
+        fetchAPI<import('@/types').SessionExercise[]>(`/sessions/${sessionId}/exercises`),
 };
 
 // Uploads API

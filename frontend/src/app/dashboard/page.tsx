@@ -1,26 +1,72 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { sessionsApi } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { sessionsApi, clientsApi, locationsApi } from '@/lib/api';
 import { getThemeById } from '@/themes';
 import { useDashboardApp } from '@/hooks/useDashboardApp';
-import type { SessionStats } from '@/types';
+import { StartSessionModal } from '@/components/session/StartSessionModal';
+import type { SessionStats, Client, Location } from '@/types';
 
 export default function DashboardHomePage() {
     const { app, trainer } = useDashboardApp();
+    const router = useRouter();
     const [stats, setStats] = useState<SessionStats | null>(null);
+    const [startingSession, setStartingSession] = useState(false);
+    const [showStartModal, setShowStartModal] = useState(false);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [locations, setLocations] = useState<Location[]>([]);
 
     useEffect(() => {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
+        // Fetch stats
         sessionsApi.getStats(
             app.trainer_id,
             startOfMonth.toISOString(),
             endOfMonth.toISOString()
         ).then(setStats).catch(console.error);
+
+        // Fetch clients and locations for StartSessionModal
+        Promise.all([
+            clientsApi.list(app.trainer_id),
+            locationsApi.list(app.trainer_id),
+        ]).then(([c, l]) => {
+            setClients(c);
+            setLocations(l);
+        }).catch(console.error);
     }, [app.trainer_id]);
+
+    const handleStartSession = async () => {
+        setStartingSession(true);
+        try {
+            // Check for scheduled session within ±15 minutes
+            const currentSession = await sessionsApi.getCurrent(app.trainer_id, 15);
+
+            if (currentSession) {
+                // Found a scheduled session - start it
+                await sessionsApi.startActive({
+                    session_id: currentSession.id,
+                    trainer_id: app.trainer_id,
+                    client_ids: [currentSession.client_id],
+                    duration_minutes: currentSession.duration_minutes,
+                    location_id: currentSession.location_id || undefined,
+                });
+                // Navigate to active session page
+                router.push(`/dashboard/session/active?app_id=${app.id}`);
+            } else {
+                // No scheduled session - show modal for ad-hoc session
+                setShowStartModal(true);
+            }
+        } catch (error) {
+            console.error('Error starting session:', error);
+            alert('Error al iniciar la sesión. Por favor intenta de nuevo.');
+        } finally {
+            setStartingSession(false);
+        }
+    };
 
     return (
         <div className="fade-in">
@@ -99,7 +145,15 @@ export default function DashboardHomePage() {
             <div className="card">
                 <h3 style={{ marginBottom: '1rem' }}>Acciones Rápidas</h3>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                    <a href={`/dashboard/clients?app_id=${app.id}`} className="btn btn-primary">
+                    <button
+                        onClick={handleStartSession}
+                        disabled={startingSession}
+                        className="btn btn-primary"
+                        style={{ minWidth: '200px' }}
+                    >
+                        {startingSession ? 'Iniciando...' : 'Iniciar Sesión'}
+                    </button>
+                    <a href={`/dashboard/clients?app_id=${app.id}`} className="btn btn-secondary">
                         Agregar Nuevo Cliente
                     </a>
                     <a href={`/dashboard/calendar?app_id=${app.id}`} className="btn btn-secondary">
@@ -107,6 +161,17 @@ export default function DashboardHomePage() {
                     </a>
                 </div>
             </div>
+
+            {/* Start Session Modal */}
+            {showStartModal && (
+                <StartSessionModal
+                    trainerId={app.trainer_id}
+                    appId={app.id}
+                    clients={clients}
+                    locations={locations}
+                    onClose={() => setShowStartModal(false)}
+                />
+            )}
         </div>
     );
 }

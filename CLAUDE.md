@@ -183,7 +183,8 @@ Backend requires a `.env` file (see `.env.example`):
 - **Workflow**:
   1. Modify models in `app/models/`
   2. Reset DB: `docker-compose down -v` then `docker-compose up -d postgres`
-  3. Seed data: `poetry run python scripts/seed_data.py`
+  3. Run migrations: `cd backend && alembic upgrade head`
+  4. Seed data: `cd backend && poetry run python scripts/seed_data.py`
 - (Legacy: `alembic revision ...` - avoid usage)
 
 ### File Uploads

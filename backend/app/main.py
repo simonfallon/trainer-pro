@@ -41,7 +41,7 @@ app.include_router(locations.router, prefix="/locations", tags=["locations"])
 app.include_router(clients.router, prefix="/clients", tags=["clients"])
 app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
 app.include_router(exercise_templates.router, prefix="/exercise-templates", tags=["exercise-templates"])
-app.include_router(session_exercises.router, prefix="/session-exercises", tags=["session-exercises"])
+app.include_router(session_exercises.router, tags=["session-exercises"])
 
 from app.routers import auth
 app.include_router(auth.router, prefix="/auth", tags=["auth"])

@@ -12,6 +12,7 @@ from app.database import Base
 class SessionStatus(str, PyEnum):
     """Training session status."""
     SCHEDULED = "scheduled"
+    IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
@@ -50,6 +51,10 @@ class TrainingSession(Base):
     scheduled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     duration_minutes: Mapped[int] = mapped_column(
         Integer,

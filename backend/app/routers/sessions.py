@@ -18,6 +18,10 @@ from app.schemas.session import (
     SessionStats,
     SessionGroupCreate,
     SessionGroupResponse,
+    StartActiveSessionRequest,
+    ActiveSessionResponse,
+    ClientNotesRequest,
+    LapTimesRequest,
 )
 
 router = APIRouter()
@@ -88,6 +92,152 @@ async def get_session_stats(
         cancelled_sessions=cancelled,
         total_clients=total_clients,
     )
+
+
+# Active Session Endpoints (must come before /{session_id} to avoid routing conflicts)
+
+@router.get("/current", response_model=SessionResponse | None)
+async def get_current_session(
+    trainer_id: int = Query(..., description="Trainer ID"),
+    tolerance_minutes: int = Query(15, description="Tolerance in minutes"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Find session scheduled within tolerance (±minutes) of current time."""
+    from datetime import timedelta
+
+    now = datetime.utcnow()
+    start_time = now - timedelta(minutes=tolerance_minutes)
+    end_time = now + timedelta(minutes=tolerance_minutes)
+
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.trainer_id == trainer_id)
+        .where(TrainingSession.status == SessionStatus.SCHEDULED.value)
+        .where(TrainingSession.scheduled_at >= start_time)
+        .where(TrainingSession.scheduled_at <= end_time)
+        .order_by(TrainingSession.scheduled_at)
+    )
+
+    return result.scalars().first()
+
+
+@router.post("/active/start", response_model=SessionResponse | SessionGroupResponse, status_code=status.HTTP_201_CREATED)
+async def start_active_session(
+    data: StartActiveSessionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Start or create an active session."""
+    now = datetime.utcnow()
+
+    if data.session_id:
+        # Start existing session
+        result = await db.execute(
+            select(TrainingSession).where(TrainingSession.id == data.session_id)
+        )
+        session = result.scalar_one_or_none()
+
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found",
+            )
+
+        # Update to in progress
+        session.status = SessionStatus.IN_PROGRESS.value
+        session.started_at = now
+        await db.flush()
+        await db.refresh(session)
+        return session
+
+    else:
+        # Create new ad-hoc session(s)
+        if len(data.client_ids) == 1:
+            # Single client session
+            session = TrainingSession(
+                trainer_id=data.trainer_id,
+                client_id=data.client_ids[0],
+                location_id=data.location_id,
+                scheduled_at=now,
+                started_at=now,
+                duration_minutes=data.duration_minutes,
+                notes=data.notes,
+                status=SessionStatus.IN_PROGRESS.value,
+            )
+            db.add(session)
+            await db.flush()
+            await db.refresh(session)
+            return session
+
+        else:
+            # Multiple clients - create group session
+            session_group = SessionGroup(
+                trainer_id=data.trainer_id,
+                location_id=data.location_id,
+                scheduled_at=now,
+                duration_minutes=data.duration_minutes,
+                notes=data.notes,
+            )
+            db.add(session_group)
+            await db.flush()
+
+            # Create individual sessions for each client
+            for client_id in data.client_ids:
+                session = TrainingSession(
+                    trainer_id=data.trainer_id,
+                    client_id=client_id,
+                    location_id=data.location_id,
+                    session_group_id=session_group.id,
+                    scheduled_at=now,
+                    started_at=now,
+                    duration_minutes=data.duration_minutes,
+                    notes=data.notes,
+                    status=SessionStatus.IN_PROGRESS.value,
+                )
+                db.add(session)
+
+            await db.flush()
+
+            # Reload with relationships
+            result = await db.execute(
+                select(SessionGroup)
+                .options(selectinload(SessionGroup.sessions))
+                .where(SessionGroup.id == session_group.id)
+            )
+            session_group = result.scalar_one()
+            return session_group
+
+
+@router.get("/active", response_model=SessionResponse | SessionGroupResponse | None)
+async def get_active_session(
+    trainer_id: int = Query(..., description="Trainer ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current active session for trainer."""
+    # Try to find an active individual session first
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.trainer_id == trainer_id)
+        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
+        .where(TrainingSession.session_group_id.is_(None))
+        .order_by(TrainingSession.started_at.desc())
+    )
+    session = result.scalars().first()
+
+    if session:
+        return session
+
+    # Check for active group session
+    result = await db.execute(
+        select(SessionGroup)
+        .options(selectinload(SessionGroup.sessions))
+        .join(TrainingSession, SessionGroup.id == TrainingSession.session_group_id)
+        .where(SessionGroup.trainer_id == trainer_id)
+        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
+        .order_by(SessionGroup.scheduled_at.desc())
+        .distinct()
+    )
+
+    return result.scalars().first()
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -266,12 +416,250 @@ async def list_session_groups(
         .options(selectinload(SessionGroup.sessions))
         .where(SessionGroup.trainer_id == trainer_id)
     )
-    
+
     if start_date:
         query = query.where(SessionGroup.scheduled_at >= start_date)
     if end_date:
         query = query.where(SessionGroup.scheduled_at <= end_date)
-    
+
     query = query.order_by(SessionGroup.scheduled_at)
     result = await db.execute(query)
     return result.scalars().all()
+async def get_current_session(
+    trainer_id: int = Query(..., description="Trainer ID"),
+    tolerance_minutes: int = Query(15, description="Tolerance in minutes"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Find session scheduled within tolerance (±minutes) of current time."""
+    from datetime import timedelta
+
+    now = datetime.utcnow()
+    start_time = now - timedelta(minutes=tolerance_minutes)
+    end_time = now + timedelta(minutes=tolerance_minutes)
+
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.trainer_id == trainer_id)
+        .where(TrainingSession.status == SessionStatus.SCHEDULED.value)
+        .where(TrainingSession.scheduled_at >= start_time)
+        .where(TrainingSession.scheduled_at <= end_time)
+        .order_by(TrainingSession.scheduled_at)
+    )
+
+    return result.scalars().first()
+
+
+@router.post("/active/start", response_model=SessionResponse | SessionGroupResponse, status_code=status.HTTP_201_CREATED)
+async def start_active_session(
+    data: StartActiveSessionRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Start or create an active session."""
+    now = datetime.utcnow()
+
+    if data.session_id:
+        # Start existing session
+        result = await db.execute(
+            select(TrainingSession).where(TrainingSession.id == data.session_id)
+        )
+        session = result.scalar_one_or_none()
+
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Session not found",
+            )
+
+        # Update to in progress
+        session.status = SessionStatus.IN_PROGRESS.value
+        session.started_at = now
+        await db.flush()
+        await db.refresh(session)
+        return session
+
+    else:
+        # Create new ad-hoc session(s)
+        if len(data.client_ids) == 1:
+            # Single client session
+            session = TrainingSession(
+                trainer_id=data.trainer_id,
+                client_id=data.client_ids[0],
+                location_id=data.location_id,
+                scheduled_at=now,
+                started_at=now,
+                duration_minutes=data.duration_minutes,
+                notes=data.notes,
+                status=SessionStatus.IN_PROGRESS.value,
+            )
+            db.add(session)
+            await db.flush()
+            await db.refresh(session)
+            return session
+
+        else:
+            # Multiple clients - create group session
+            session_group = SessionGroup(
+                trainer_id=data.trainer_id,
+                location_id=data.location_id,
+                scheduled_at=now,
+                duration_minutes=data.duration_minutes,
+                notes=data.notes,
+            )
+            db.add(session_group)
+            await db.flush()
+
+            # Create individual sessions for each client
+            for client_id in data.client_ids:
+                session = TrainingSession(
+                    trainer_id=data.trainer_id,
+                    client_id=client_id,
+                    location_id=data.location_id,
+                    session_group_id=session_group.id,
+                    scheduled_at=now,
+                    started_at=now,
+                    duration_minutes=data.duration_minutes,
+                    notes=data.notes,
+                    status=SessionStatus.IN_PROGRESS.value,
+                )
+                db.add(session)
+
+            await db.flush()
+
+            # Reload with relationships
+            result = await db.execute(
+                select(SessionGroup)
+                .options(selectinload(SessionGroup.sessions))
+                .where(SessionGroup.id == session_group.id)
+            )
+            session_group = result.scalar_one()
+            return session_group
+
+
+@router.get("/active", response_model=SessionResponse | SessionGroupResponse | None)
+async def get_active_session(
+    trainer_id: int = Query(..., description="Trainer ID"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get current active session for trainer."""
+    # Try to find an active individual session first
+    result = await db.execute(
+        select(TrainingSession)
+        .where(TrainingSession.trainer_id == trainer_id)
+        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
+        .where(TrainingSession.session_group_id.is_(None))
+        .order_by(TrainingSession.started_at.desc())
+    )
+    session = result.scalars().first()
+
+    if session:
+        return session
+
+    # Check for active group session
+    result = await db.execute(
+        select(SessionGroup)
+        .options(selectinload(SessionGroup.sessions))
+        .join(TrainingSession, SessionGroup.id == TrainingSession.session_group_id)
+        .where(SessionGroup.trainer_id == trainer_id)
+        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
+        .order_by(SessionGroup.scheduled_at.desc())
+        .distinct()
+    )
+
+    return result.scalars().first()
+
+
+@router.patch("/{session_id}/client-notes", response_model=SessionResponse)
+async def save_client_notes(
+    session_id: int,
+    data: ClientNotesRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Save notes for a specific client during active session."""
+    import json
+
+    result = await db.execute(
+        select(TrainingSession).where(TrainingSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Parse existing session_doc or create new structure
+    session_doc = {}
+    if session.session_doc:
+        try:
+            session_doc = json.loads(session.session_doc)
+        except (json.JSONDecodeError, TypeError):
+            # If session_doc is plain text, preserve it as general_notes
+            session_doc = {"general_notes": session.session_doc}
+
+    # Update client notes
+    if "client_notes" not in session_doc:
+        session_doc["client_notes"] = {}
+
+    session_doc["client_notes"][str(data.client_id)] = data.notes
+
+    # Save back as JSON string
+    session.session_doc = json.dumps(session_doc)
+
+    await db.flush()
+    await db.refresh(session)
+    return session
+
+
+@router.post("/{session_id}/lap-times")
+async def save_lap_times(
+    session_id: int,
+    data: LapTimesRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Save BMX lap times as a session exercise."""
+    from app.models.session_exercise import SessionExercise
+
+    result = await db.execute(
+        select(TrainingSession).where(TrainingSession.id == session_id)
+    )
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    # Create session exercise with lap times
+    exercise_data = {
+        "lap_times_ms": data.lap_times_ms,
+        "total_duration_ms": data.total_duration_ms,
+        "lap_count": len(data.lap_times_ms),
+        "client_id": data.client_id,
+    }
+
+    # Get the next order index
+    result = await db.execute(
+        select(func.max(SessionExercise.order_index))
+        .where(SessionExercise.session_id == session_id)
+    )
+    max_order = result.scalar() or -1
+
+    exercise = SessionExercise(
+        session_id=session_id,
+        custom_name="Toma de Tiempo BMX",
+        data=exercise_data,
+        order_index=max_order + 1,
+    )
+    db.add(exercise)
+    await db.flush()
+    await db.refresh(exercise)
+
+    return {
+        "id": exercise.id,
+        "session_id": exercise.session_id,
+        "custom_name": exercise.custom_name,
+        "data": exercise.data,
+        "order_index": exercise.order_index,
+    }

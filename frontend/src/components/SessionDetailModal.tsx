@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { sessionsApi } from '@/lib/api';
 import { useDarkStyles } from '@/hooks/useDarkStyles';
 import { formatDate } from '@/lib/dateUtils';
 import { SESSION_STATUS_LABELS } from '@/lib/labels';
-import type { TrainingSession } from '@/types';
+import type { TrainingSession, SessionExercise } from '@/types';
 
 export function SessionDetailModal({
     session,
@@ -20,6 +20,20 @@ export function SessionDetailModal({
     const [sessionDoc, setSessionDoc] = useState(session.session_doc || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [exercises, setExercises] = useState<SessionExercise[]>([]);
+
+    // Fetch exercises when modal opens
+    useEffect(() => {
+        const fetchExercises = async () => {
+            try {
+                const data = await sessionsApi.getExercises(session.id);
+                setExercises(data);
+            } catch (err) {
+                console.error('Error fetching exercises:', err);
+            }
+        };
+        fetchExercises();
+    }, [session.id]);
 
     const handleSave = async () => {
         setLoading(true);
@@ -35,6 +49,20 @@ export function SessionDetailModal({
             setLoading(false);
         }
     };
+
+    // Format milliseconds to MM:SS.CS (centiseconds)
+    const formatLapTime = (ms: number): string => {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        const centiseconds = Math.floor((ms % 1000) / 10);
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
+    };
+
+    // Filter exercises to get lap time measurements
+    const lapTimeMeasurements = exercises.filter(
+        (ex) => ex.custom_name === 'Toma de Tiempo BMX'
+    );
 
     const detailRows = [
         { label: 'Fecha', value: formatDate(session.scheduled_at) },
@@ -70,6 +98,69 @@ export function SessionDetailModal({
                         </div>
                     )}
                 </div>
+
+                {/* Lap Times Section */}
+                {lapTimeMeasurements.length > 0 && (
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <h4 style={{ color: theme.colors.text, fontSize: '1rem', marginBottom: '1rem' }}>
+                            Tiempos Registrados
+                        </h4>
+                        {lapTimeMeasurements.map((measurement, idx) => (
+                            <div key={measurement.id} style={{ marginBottom: idx < lapTimeMeasurements.length - 1 ? '1.5rem' : 0 }}>
+                                <div style={{
+                                    fontSize: '0.875rem',
+                                    color: theme.colors.secondary,
+                                    marginBottom: '0.5rem',
+                                    fontWeight: 600
+                                }}>
+                                    Medición #{idx + 1}
+                                    {measurement.data.total_duration_ms && (
+                                        <span style={{ marginLeft: '0.5rem' }}>
+                                            - Tiempo total: {formatLapTime(measurement.data.total_duration_ms)}
+                                        </span>
+                                    )}
+                                </div>
+                                {measurement.data.lap_times_ms && measurement.data.lap_times_ms.length > 0 ? (
+                                    <table style={{
+                                        width: '100%',
+                                        borderCollapse: 'collapse',
+                                        fontSize: '0.875rem'
+                                    }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: `1px solid ${theme.colors.secondary}30` }}>
+                                                <th style={{ padding: '0.5rem', textAlign: 'left', color: theme.colors.secondary }}>#</th>
+                                                <th style={{ padding: '0.5rem', textAlign: 'left', color: theme.colors.secondary }}>Tiempo de Vuelta</th>
+                                                <th style={{ padding: '0.5rem', textAlign: 'left', color: theme.colors.secondary }}>Tiempo Parcial</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {measurement.data.lap_times_ms.map((lapTime: number, lapIdx: number) => {
+                                                const splitTime = measurement.data.lap_times_ms
+                                                    .slice(0, lapIdx + 1)
+                                                    .reduce((sum: number, time: number) => sum + time, 0);
+                                                return (
+                                                    <tr key={lapIdx} style={{ borderBottom: `1px solid ${theme.colors.secondary}20` }}>
+                                                        <td style={{ padding: '0.5rem', color: theme.colors.text }}>{lapIdx + 1}</td>
+                                                        <td style={{ padding: '0.5rem', color: theme.colors.text, fontWeight: 600 }}>
+                                                            {formatLapTime(lapTime)}
+                                                        </td>
+                                                        <td style={{ padding: '0.5rem', color: theme.colors.secondary }}>
+                                                            {formatLapTime(splitTime)}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                ) : (
+                                    <p style={{ fontSize: '0.875rem', color: theme.colors.secondary, fontStyle: 'italic' }}>
+                                        No hay tiempos registrados
+                                    </p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <div className="form-group">
                     <label className="form-label">Documentación de la Sesión</label>

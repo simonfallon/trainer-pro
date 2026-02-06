@@ -77,7 +77,7 @@ export interface Client {
     updated_at: string;
 }
 
-export type SessionStatus = 'scheduled' | 'completed' | 'cancelled';
+export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface TrainingSession {
     id: number;
@@ -86,6 +86,7 @@ export interface TrainingSession {
     location_id: number | null;
     session_group_id: number | null;
     scheduled_at: string;
+    started_at?: string | null;
     duration_minutes: number;
     notes: string | null;
     status: SessionStatus;
@@ -235,5 +236,40 @@ export interface ExerciseTemplateUpdateInput {
         label: string;
         required: boolean;
     }>;
+}
+
+// Active Session Types
+export interface ActiveSession {
+    session?: TrainingSession;
+    session_group?: SessionGroup;
+    clients: Client[];
+    started_at: string;
+    duration_minutes: number;
+}
+
+export interface StartSessionRequest {
+    session_id?: number;
+    trainer_id: number;
+    client_ids: number[];
+    duration_minutes: number;
+    location_id?: number;
+    notes?: string;
+}
+
+export interface LapTime {
+    lap_number: number;
+    lap_time_ms: number;
+    split_time_ms: number;
+}
+
+export interface SessionExercise {
+    id: number;
+    session_id: number | null;
+    session_group_id: number | null;
+    exercise_template_id: number | null;
+    custom_name: string | null;
+    data: Record<string, any>;
+    order_index: number;
+    created_at: string;
 }
 

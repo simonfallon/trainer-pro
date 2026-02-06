@@ -187,10 +187,10 @@ Copy `frontend/.env.example` to `frontend/.env.local` and configure:
 - **Rule**: Drop and recreate the database instead of migrating.
 - **Workflow**:
   1. Modify models in `app/models/`
-  2. Reset DB: `docker-compose down -v` then `docker-compose up -d postgres` (or drop/create via psql)
-  3. Generate a single initial migration if completely necessary, but generally just let Alembic/SQLAlchemy handle the fresh state if configured, or maintain one single 'initial' migration file.
-  4. Seed data: `poetry run python scripts/seed_data.py`
-- (Legacy: `poetry run alembic revision ...` - avoid usage)
+  2. Reset DB: `docker-compose down -v` then `docker-compose up -d postgres`
+  3. Run migrations: `cd backend && alembic upgrade head`
+  4. Seed data: `cd backend && poetry run python scripts/seed_data.py`
+- (Legacy: `alembic revision ...` - avoid usage)
 
 ### File Uploads
 - Files stored in `backend/uploads/`
