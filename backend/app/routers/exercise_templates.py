@@ -1,6 +1,7 @@
 """
 Exercise Templates API Router
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,15 +44,13 @@ async def autocomplete_exercise_templates(
 ):
     """
     Autocomplete search for exercise templates with fuzzy matching.
-    
+
     Uses PostgreSQL's ILIKE for case-insensitive substring matching and
     similarity() for fuzzy matching with typos/variations.
     """
     if not q:
         # Return all templates if no query
-        query = select(ExerciseTemplate).where(
-            ExerciseTemplate.trainer_app_id == trainer_app_id
-        )
+        query = select(ExerciseTemplate).where(ExerciseTemplate.trainer_app_id == trainer_app_id)
         if discipline_type:
             query = query.where(ExerciseTemplate.discipline_type == discipline_type)
         query = query.order_by(ExerciseTemplate.name).limit(limit)
@@ -64,7 +63,7 @@ async def autocomplete_exercise_templates(
 
     query = select(ExerciseTemplate).where(
         ExerciseTemplate.trainer_app_id == trainer_app_id,
-        ExerciseTemplate.name.ilike(search_pattern)
+        ExerciseTemplate.name.ilike(search_pattern),
     )
 
     if discipline_type:
@@ -73,8 +72,7 @@ async def autocomplete_exercise_templates(
     # Order by: exact prefix match first, then alphabetically
     # Use CASE to prioritize exact prefix matches
     query = query.order_by(
-        func.lower(ExerciseTemplate.name).startswith(q.lower()).desc(),
-        ExerciseTemplate.name
+        func.lower(ExerciseTemplate.name).startswith(q.lower()).desc(), ExerciseTemplate.name
     ).limit(limit)
 
     result = await db.execute(query)
@@ -87,9 +85,7 @@ async def get_exercise_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Get an exercise template by ID."""
-    result = await db.execute(
-        select(ExerciseTemplate).where(ExerciseTemplate.id == template_id)
-    )
+    result = await db.execute(select(ExerciseTemplate).where(ExerciseTemplate.id == template_id))
     template = result.scalar_one_or_none()
 
     if not template:
@@ -126,9 +122,7 @@ async def update_exercise_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Update an exercise template."""
-    result = await db.execute(
-        select(ExerciseTemplate).where(ExerciseTemplate.id == template_id)
-    )
+    result = await db.execute(select(ExerciseTemplate).where(ExerciseTemplate.id == template_id))
     template = result.scalar_one_or_none()
 
     if not template:
@@ -152,9 +146,7 @@ async def delete_exercise_template(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete an exercise template."""
-    result = await db.execute(
-        select(ExerciseTemplate).where(ExerciseTemplate.id == template_id)
-    )
+    result = await db.execute(select(ExerciseTemplate).where(ExerciseTemplate.id == template_id))
     template = result.scalar_one_or_none()
 
     if not template:

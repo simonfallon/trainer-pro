@@ -1,6 +1,7 @@
 """
 Client Schemas
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field, computed_field
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field, computed_field
 
 class ClientBase(BaseModel):
     """Base client schema."""
+
     name: str = Field(..., min_length=1, max_length=255)
     phone: str = Field(..., min_length=1, max_length=50)
     email: str | None = Field(None, max_length=255)
@@ -23,11 +25,13 @@ class ClientBase(BaseModel):
 
 class ClientCreate(ClientBase):
     """Schema for creating a client."""
+
     trainer_id: int
 
 
 class ClientUpdate(BaseModel):
     """Schema for updating a client."""
+
     name: str | None = Field(None, min_length=1, max_length=255)
     phone: str | None = Field(None, min_length=1, max_length=50)
     email: str | None = Field(None, max_length=255)
@@ -43,6 +47,7 @@ class ClientUpdate(BaseModel):
 
 class ClientResponse(ClientBase):
     """Schema for client response."""
+
     id: int
     trainer_id: int
     google_id: str | None = None

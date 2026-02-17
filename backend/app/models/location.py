@@ -1,6 +1,7 @@
 """
 Location Model
 """
+
 from datetime import datetime
 from enum import Enum as PyEnum
 
@@ -12,6 +13,7 @@ from app.database import Base
 
 class LocationType(str, PyEnum):
     """Location type enumeration."""
+
     TRAINER_BASE = "trainer_base"
     CLIENT_HOME = "client_home"
     GYM = "gym"

@@ -1,6 +1,7 @@
 """
 Client API Integration Tests
 """
+
 from httpx import AsyncClient
 
 from app.models import Client, Trainer
@@ -64,7 +65,9 @@ class TestClientEndpoints:
         assert data["weight_kg"] == 80.0
         assert data["height_cm"] == 182
 
-    async def test_list_clients(self, client: AsyncClient, test_trainer: Trainer, test_client_record: Client):
+    async def test_list_clients(
+        self, client: AsyncClient, test_trainer: Trainer, test_client_record: Client
+    ):
         """Test listing clients for a trainer."""
         response = await client.get(
             "/clients",
@@ -76,7 +79,9 @@ class TestClientEndpoints:
         assert isinstance(data, list)
         assert len(data) >= 1
 
-    async def test_delete_client_soft_delete(self, client: AsyncClient, test_client_record: Client, test_trainer: Trainer):
+    async def test_delete_client_soft_delete(
+        self, client: AsyncClient, test_client_record: Client, test_trainer: Trainer
+    ):
         """Test soft delete of a client."""
         response = await client.delete(f"/clients/{test_client_record.id}")
         assert response.status_code == 204

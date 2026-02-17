@@ -1,6 +1,7 @@
 """
 Trainer-Pro FastAPI Application
 """
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -50,7 +51,9 @@ app.include_router(apps.router, prefix="/apps", tags=["apps"])
 app.include_router(locations.router, prefix="/locations", tags=["locations"])
 app.include_router(clients.router, prefix="/clients", tags=["clients"])
 app.include_router(sessions.router, prefix="/sessions", tags=["sessions"])
-app.include_router(exercise_templates.router, prefix="/exercise-templates", tags=["exercise-templates"])
+app.include_router(
+    exercise_templates.router, prefix="/exercise-templates", tags=["exercise-templates"]
+)
 app.include_router(session_exercises.router, tags=["session-exercises"])
 app.include_router(exercise_sets.router, prefix="/exercise-sets", tags=["exercise-sets"])
 
@@ -61,6 +64,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 # Dev auth bypass (only active when DEV_AUTH_BYPASS=true)
 if settings.dev_auth_bypass:
     from app.routers import dev_auth
+
     app.include_router(dev_auth.router, tags=["dev"])
 
 # Import uploads router (lazy import to avoid circular dep if needed, or just import at top)

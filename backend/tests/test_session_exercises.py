@@ -1,6 +1,7 @@
 """
 Session Exercise API Integration Tests
 """
+
 from httpx import AsyncClient
 
 from app.models import ExerciseTemplate, SessionExercise, TrainingSession
@@ -32,7 +33,9 @@ class TestSessionExerciseEndpoints:
         assert data["data"]["repeticiones"] == 10
         assert data["order_index"] == 0
 
-    async def test_create_session_exercise_custom(self, client: AsyncClient, test_session: TrainingSession):
+    async def test_create_session_exercise_custom(
+        self, client: AsyncClient, test_session: TrainingSession
+    ):
         """Test adding a custom exercise without a template."""
         response = await client.post(
             f"/sessions/{test_session.id}/exercises",
@@ -138,7 +141,7 @@ class TestSessionExerciseEndpoints:
         assert len(data) >= 3
 
         # Verify new order
-        for i, exercise in enumerate(data):
+        for _i, exercise in enumerate(data):
             if exercise["id"] in reversed_ids:
                 expected_index = reversed_ids.index(exercise["id"])
                 assert exercise["order_index"] == expected_index

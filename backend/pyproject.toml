@@ -57,7 +57,13 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "B008",  # Depends() in defaults — standard FastAPI pattern
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["F403"]         # star import needed to register all models
+"app/models/*.py" = ["E402"]        # bottom-of-file imports to avoid circular deps
+"app/main.py" = ["E402"]            # conditional/lazy imports after router setup
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

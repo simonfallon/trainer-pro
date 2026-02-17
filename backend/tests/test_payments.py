@@ -1,6 +1,7 @@
 """
 Payment API Integration Tests
 """
+
 from datetime import datetime, timedelta
 
 from httpx import AsyncClient
@@ -18,9 +19,7 @@ class TestPaymentEndpoints:
         test_client_record: Client,
     ):
         """Test payment balance with no sessions."""
-        response = await client.get(
-            f"/clients/{test_client_record.id}/payment-balance"
-        )
+        response = await client.get(f"/clients/{test_client_record.id}/payment-balance")
 
         assert response.status_code == 200
         data = response.json()
@@ -43,7 +42,7 @@ class TestPaymentEndpoints:
             session = TrainingSession(
                 trainer_id=test_trainer.id,
                 client_id=test_client_record.id,
-                scheduled_at=datetime.now() - timedelta(days=i+1),
+                scheduled_at=datetime.now() - timedelta(days=i + 1),
                 duration_minutes=60,
                 status="completed",
                 is_paid=False,
@@ -51,9 +50,7 @@ class TestPaymentEndpoints:
             db_session.add(session)
         await db_session.flush()
 
-        response = await client.get(
-            f"/clients/{test_client_record.id}/payment-balance"
-        )
+        response = await client.get(f"/clients/{test_client_record.id}/payment-balance")
 
         assert response.status_code == 200
         data = response.json()
@@ -76,7 +73,7 @@ class TestPaymentEndpoints:
             session = TrainingSession(
                 trainer_id=test_trainer.id,
                 client_id=test_client_record.id,
-                scheduled_at=datetime.now() - timedelta(days=10-i),  # Oldest first
+                scheduled_at=datetime.now() - timedelta(days=10 - i),  # Oldest first
                 duration_minutes=60,
                 status="completed",
                 is_paid=False,
@@ -101,9 +98,7 @@ class TestPaymentEndpoints:
         assert data["amount_cop"] == 150000
 
         # Check balance - should have 3 paid, 2 unpaid
-        balance_response = await client.get(
-            f"/clients/{test_client_record.id}/payment-balance"
-        )
+        balance_response = await client.get(f"/clients/{test_client_record.id}/payment-balance")
         balance = balance_response.json()
         assert balance["paid_sessions"] == 3
         assert balance["unpaid_sessions"] == 2
@@ -126,9 +121,7 @@ class TestPaymentEndpoints:
         assert response.status_code == 201
 
         # Check balance - should show prepaid sessions
-        balance_response = await client.get(
-            f"/clients/{test_client_record.id}/payment-balance"
-        )
+        balance_response = await client.get(f"/clients/{test_client_record.id}/payment-balance")
         balance = balance_response.json()
         assert balance["prepaid_sessions"] == 10
         assert balance["has_positive_balance"] is True
@@ -140,9 +133,7 @@ class TestPaymentEndpoints:
         test_session: TrainingSession,
     ):
         """Test getting all sessions for a specific client."""
-        response = await client.get(
-            f"/clients/{test_client_record.id}/sessions"
-        )
+        response = await client.get(f"/clients/{test_client_record.id}/sessions")
 
         assert response.status_code == 200
         data = response.json()
@@ -152,7 +143,5 @@ class TestPaymentEndpoints:
 
     async def test_payment_balance_not_found(self, client: AsyncClient):
         """Test 404 for non-existent client payment balance."""
-        response = await client.get(
-            "/clients/999999/payment-balance"
-        )
+        response = await client.get("/clients/999999/payment-balance")
         assert response.status_code == 404

@@ -1,6 +1,7 @@
 """
 Locations API Router
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,9 +19,7 @@ async def list_locations(
     db: AsyncSession = Depends(get_db),
 ):
     """List all locations for a trainer."""
-    result = await db.execute(
-        select(Location).where(Location.trainer_id == trainer_id)
-    )
+    result = await db.execute(select(Location).where(Location.trainer_id == trainer_id))
     return result.scalars().all()
 
 

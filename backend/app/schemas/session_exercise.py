@@ -1,6 +1,7 @@
 """
 Session Exercise Schemas
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class SessionExerciseBase(BaseModel):
     """Base session exercise schema."""
+
     exercise_template_id: int | None = None
     custom_name: str | None = Field(None, max_length=255)
     data: dict = Field(default_factory=dict)
@@ -16,6 +18,7 @@ class SessionExerciseBase(BaseModel):
 
 class SessionExerciseCreate(SessionExerciseBase):
     """Schema for creating a session exercise."""
+
     session_id: int | None = None
     session_group_id: int | None = None
 
@@ -25,6 +28,7 @@ class SessionExerciseCreate(SessionExerciseBase):
 
 class SessionExerciseUpdate(BaseModel):
     """Schema for updating a session exercise."""
+
     exercise_template_id: int | None = None
     custom_name: str | None = Field(None, max_length=255)
     data: dict | None = None
@@ -33,6 +37,7 @@ class SessionExerciseUpdate(BaseModel):
 
 class SessionExerciseResponse(SessionExerciseBase):
     """Schema for session exercise response."""
+
     id: int
     session_id: int | None
     session_group_id: int | None
@@ -45,4 +50,5 @@ class SessionExerciseResponse(SessionExerciseBase):
 
 class SessionExerciseReorderRequest(BaseModel):
     """Schema for bulk reordering session exercises."""
+
     exercise_ids: list[int] = Field(..., min_length=1)

@@ -2,6 +2,7 @@
 Authentication Router
 Handles Google OAuth 2.0 flow.
 """
+
 import secrets
 from datetime import datetime, timedelta
 
@@ -24,6 +25,7 @@ settings = get_settings()
 # In production, this should match the authorized redirect URI in Google Console
 REDIRECT_URI = "http://localhost:3000/auth/callback"
 
+
 @router.get("/google/url")
 async def get_google_auth_url():
     """
@@ -35,12 +37,7 @@ async def get_google_auth_url():
     # Scopes:
     # openid, email, profile: for sign-in
     # https://www.googleapis.com/auth/calendar: for future calendar sync
-    scopes = [
-        "openid",
-        "email",
-        "profile",
-        "https://www.googleapis.com/auth/calendar"
-    ]
+    scopes = ["openid", "email", "profile", "https://www.googleapis.com/auth/calendar"]
 
     scope_str = " ".join(scopes)
 
@@ -63,10 +60,7 @@ async def get_google_auth_url():
 
 
 @router.post("/google/exchange")
-async def exchange_google_code(
-    payload: dict,
-    db: AsyncSession = Depends(get_db)
-):
+async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)):
     """
     Exchange authorization code for tokens and sign in/up the trainer.
     """
@@ -96,18 +90,18 @@ async def exchange_google_code(
     tokens = response.json()
     id_token_jwt = tokens.get("id_token")
     access_token = tokens.get("access_token")
-    refresh_token = tokens.get("refresh_token") # Only present if access_type=offline and prompt=consent
+    refresh_token = tokens.get(
+        "refresh_token"
+    )  # Only present if access_type=offline and prompt=consent
     expires_in = tokens.get("expires_in")
 
     # 2. Verify ID Token
     try:
         id_info = id_token.verify_oauth2_token(
-            id_token_jwt,
-            google_requests.Request(),
-            settings.google_client_id
+            id_token_jwt, google_requests.Request(), settings.google_client_id
         )
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid ID Token")
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail="Invalid ID Token") from err
 
     email = id_info.get("email")
     google_id = id_info.get("sub")
@@ -128,7 +122,7 @@ async def exchange_google_code(
         if refresh_token:
             trainer.google_refresh_token = refresh_token
         trainer.google_access_token = access_token
-        trainer.google_id = google_id # Ensure this is set
+        trainer.google_id = google_id  # Ensure this is set
         if expires_in:
             trainer.token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
     else:
@@ -141,7 +135,7 @@ async def exchange_google_code(
             google_id=google_id,
             google_refresh_token=refresh_token,
             google_access_token=access_token,
-            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in) if expires_in else None
+            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in) if expires_in else None,
         )
         db.add(trainer)
 
@@ -159,5 +153,5 @@ async def exchange_google_code(
         "is_new_user": is_new_user or not trainer.phone,
         "has_app": app is not None,
         "app_id": app.id if app else None,
-        "app_name": app.name if app else None
+        "app_name": app.name if app else None,
     }

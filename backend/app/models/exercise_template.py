@@ -1,6 +1,7 @@
 """
 Exercise Template Model
 """
+
 from datetime import datetime
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String

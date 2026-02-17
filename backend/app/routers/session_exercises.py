@@ -1,6 +1,7 @@
 """
 Session Exercises API Router
 """
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,9 +53,7 @@ async def list_session_group_exercises(
 ):
     """List all exercises for a session group."""
     # Verify group exists
-    group_result = await db.execute(
-        select(SessionGroup).where(SessionGroup.id == group_id)
-    )
+    group_result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
     if not group_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -70,7 +69,11 @@ async def list_session_group_exercises(
     return result.scalars().all()
 
 
-@router.post("/sessions/{session_id}/exercises", response_model=SessionExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sessions/{session_id}/exercises",
+    response_model=SessionExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_session_exercise(
     session_id: int,
     exercise_data: SessionExerciseCreate,
@@ -94,7 +97,9 @@ async def create_session_exercise(
     # If using a template, increment usage count
     if exercise_data.exercise_template_id:
         template_result = await db.execute(
-            select(ExerciseTemplate).where(ExerciseTemplate.id == exercise_data.exercise_template_id)
+            select(ExerciseTemplate).where(
+                ExerciseTemplate.id == exercise_data.exercise_template_id
+            )
         )
         template = template_result.scalar_one_or_none()
         if template:
@@ -114,7 +119,11 @@ async def create_session_exercise(
     return exercise
 
 
-@router.post("/session-groups/{group_id}/exercises", response_model=SessionExerciseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/session-groups/{group_id}/exercises",
+    response_model=SessionExerciseResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_session_group_exercise(
     group_id: int,
     exercise_data: SessionExerciseCreate,
@@ -122,9 +131,7 @@ async def create_session_group_exercise(
 ):
     """Add an exercise to a session group."""
     # Verify group exists
-    group_result = await db.execute(
-        select(SessionGroup).where(SessionGroup.id == group_id)
-    )
+    group_result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
     if not group_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -138,7 +145,9 @@ async def create_session_group_exercise(
     # If using a template, increment usage count
     if exercise_data.exercise_template_id:
         template_result = await db.execute(
-            select(ExerciseTemplate).where(ExerciseTemplate.id == exercise_data.exercise_template_id)
+            select(ExerciseTemplate).where(
+                ExerciseTemplate.id == exercise_data.exercise_template_id
+            )
         )
         template = template_result.scalar_one_or_none()
         if template:
@@ -165,9 +174,7 @@ async def update_session_exercise(
     db: AsyncSession = Depends(get_db),
 ):
     """Update a session exercise."""
-    result = await db.execute(
-        select(SessionExercise).where(SessionExercise.id == exercise_id)
-    )
+    result = await db.execute(select(SessionExercise).where(SessionExercise.id == exercise_id))
     exercise = result.scalar_one_or_none()
 
     if not exercise:
@@ -191,9 +198,7 @@ async def delete_session_exercise(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a session exercise."""
-    result = await db.execute(
-        select(SessionExercise).where(SessionExercise.id == exercise_id)
-    )
+    result = await db.execute(select(SessionExercise).where(SessionExercise.id == exercise_id))
     exercise = result.scalar_one_or_none()
 
     if not exercise:
@@ -206,7 +211,9 @@ async def delete_session_exercise(
     await db.flush()
 
 
-@router.put("/sessions/{session_id}/exercises/reorder", response_model=list[SessionExerciseResponse])
+@router.put(
+    "/sessions/{session_id}/exercises/reorder", response_model=list[SessionExerciseResponse]
+)
 async def reorder_session_exercises(
     session_id: int,
     reorder_data: SessionExerciseReorderRequest,
@@ -227,8 +234,7 @@ async def reorder_session_exercises(
     for index, exercise_id in enumerate(reorder_data.exercise_ids):
         result = await db.execute(
             select(SessionExercise).where(
-                SessionExercise.id == exercise_id,
-                SessionExercise.session_id == session_id
+                SessionExercise.id == exercise_id, SessionExercise.session_id == session_id
             )
         )
         exercise = result.scalar_one_or_none()

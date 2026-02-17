@@ -16,7 +16,7 @@ async def test_start_multi_client_session(client: AsyncClient, test_trainer, tes
             "/clients",
             json={
                 "trainer_id": test_trainer.id,
-                "name": f"Test Client {i+1}",
+                "name": f"Test Client {i + 1}",
                 "phone": f"555-000{i}",
             },
         )
@@ -38,7 +38,9 @@ async def test_start_multi_client_session(client: AsyncClient, test_trainer, tes
 
     # Should return a SessionGroup
     assert "sessions" in session_data, "Response should be a SessionGroup with sessions"
-    assert len(session_data["sessions"]) == 3, f"Should have 3 sessions, got {len(session_data.get('sessions', []))}"
+    assert len(session_data["sessions"]) == 3, (
+        f"Should have 3 sessions, got {len(session_data.get('sessions', []))}"
+    )
 
     # All sessions should be in_progress
     for session in session_data["sessions"]:
@@ -58,7 +60,7 @@ async def test_get_active_session_multi_client(client: AsyncClient, test_trainer
             "/clients",
             json={
                 "trainer_id": test_trainer.id,
-                "name": f"Test Client {i+1}",
+                "name": f"Test Client {i + 1}",
                 "phone": f"555-000{i}",
             },
         )
@@ -82,7 +84,9 @@ async def test_get_active_session_multi_client(client: AsyncClient, test_trainer
 
     # Should return a SessionGroup with sessions
     assert "sessions" in data, "Response should include sessions array"
-    assert len(data["sessions"]) == 3, f"Should have 3 sessions, got {len(data.get('sessions', []))}"
+    assert len(data["sessions"]) == 3, (
+        f"Should have 3 sessions, got {len(data.get('sessions', []))}"
+    )
 
     # Each session should have client_id
     client_ids = [s["client_id"] for s in data["sessions"]]

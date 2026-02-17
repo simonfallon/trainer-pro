@@ -1,6 +1,7 @@
 """
 Apps API Router
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,9 +19,7 @@ async def list_apps(
     db: AsyncSession = Depends(get_db),
 ):
     """List all apps for a trainer."""
-    result = await db.execute(
-        select(TrainerApp).where(TrainerApp.trainer_id == trainer_id)
-    )
+    result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer_id))
     return result.scalars().all()
 
 

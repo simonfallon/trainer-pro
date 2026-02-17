@@ -1,6 +1,7 @@
 """
 Session Schemas
 """
+
 from datetime import datetime
 from enum import Enum
 
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 
 class SessionStatus(str, Enum):
     """Training session status."""
+
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -17,6 +19,7 @@ class SessionStatus(str, Enum):
 
 class SessionBase(BaseModel):
     """Base session schema."""
+
     client_id: int
     location_id: int | None = None
     scheduled_at: datetime
@@ -29,11 +32,13 @@ class SessionBase(BaseModel):
 
 class SessionCreate(SessionBase):
     """Schema for creating a session."""
+
     trainer_id: int
 
 
 class SessionUpdate(BaseModel):
     """Schema for updating a session."""
+
     client_id: int | None = None
     location_id: int | None = None
     scheduled_at: datetime | None = None
@@ -45,6 +50,7 @@ class SessionUpdate(BaseModel):
 
 class SessionResponse(SessionBase):
     """Schema for session response."""
+
     id: int
     trainer_id: int
     session_group_id: int | None = None
@@ -59,6 +65,7 @@ class SessionResponse(SessionBase):
 
 class SessionStats(BaseModel):
     """Schema for session statistics."""
+
     total_sessions: int
     completed_sessions: int
     scheduled_sessions: int
@@ -68,6 +75,7 @@ class SessionStats(BaseModel):
 
 class SessionGroupCreate(BaseModel):
     """Schema for creating a session group with multiple clients."""
+
     trainer_id: int
     client_ids: list[int] = Field(..., min_length=1)
     location_id: int | None = None
@@ -78,6 +86,7 @@ class SessionGroupCreate(BaseModel):
 
 class SessionGroupResponse(BaseModel):
     """Schema for session group response."""
+
     id: int
     trainer_id: int
     location_id: int | None
@@ -94,6 +103,7 @@ class SessionGroupResponse(BaseModel):
 
 class StartActiveSessionRequest(BaseModel):
     """Schema for starting an active session."""
+
     session_id: int | None = None
     trainer_id: int
     client_ids: list[int] = Field(..., min_length=1)
@@ -104,6 +114,7 @@ class StartActiveSessionRequest(BaseModel):
 
 class ActiveSessionResponse(BaseModel):
     """Response for active session - could be single session or group."""
+
     session: SessionResponse | None = None
     session_group: SessionGroupResponse | None = None
     clients: list = []  # Will be populated from the session(s)
@@ -113,12 +124,14 @@ class ActiveSessionResponse(BaseModel):
 
 class ClientNotesRequest(BaseModel):
     """Request for saving client notes during session."""
+
     client_id: int
     notes: str
 
 
 class LapTimesRequest(BaseModel):
     """Request for saving BMX lap times."""
+
     client_id: int
     lap_times_ms: list[int] = Field(..., min_length=1)
     total_duration_ms: int

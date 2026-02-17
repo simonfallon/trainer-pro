@@ -5,6 +5,7 @@ This module provides shared fixtures for integration tests that interact
 with a real PostgreSQL test database. Tests run within transactions that
 are rolled back after each test to maintain test isolation.
 """
+
 import asyncio
 import os
 from collections.abc import AsyncGenerator
@@ -16,8 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 # Set test environment before importing app modules
 os.environ["DATABASE_URL"] = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test"
+    "TEST_DATABASE_URL", "postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test"
 )
 
 from app.database import Base, get_db
@@ -84,6 +84,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     Provide an async HTTP client for testing API endpoints.
     Uses the test database session.
     """
+
     async def override_get_db():
         yield db_session
 
@@ -97,6 +98,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 
 # ============== Factory Fixtures ==============
+
 
 @pytest.fixture
 async def test_trainer(db_session: AsyncSession) -> Trainer:
@@ -154,7 +156,7 @@ async def test_session(
 async def test_session_group(
     db_session: AsyncSession,
     test_trainer: Trainer,
-) -> "SessionGroup":
+) -> "SessionGroup":  # noqa: F821
     """Create a test session group."""
     from app.models import SessionGroup
 
@@ -184,7 +186,9 @@ async def test_app(db_session: AsyncSession, test_trainer: Trainer) -> TrainerAp
 
 
 @pytest.fixture
-async def test_exercise_template(db_session: AsyncSession, test_app: TrainerApp) -> ExerciseTemplate:
+async def test_exercise_template(
+    db_session: AsyncSession, test_app: TrainerApp
+) -> ExerciseTemplate:
     """Create a test physio exercise template."""
     template = ExerciseTemplate(
         trainer_app_id=test_app.id,

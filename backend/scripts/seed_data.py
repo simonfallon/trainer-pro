@@ -7,6 +7,7 @@ This script creates TWO complete test datasets:
 
 IMPORTANT: This is for DEVELOPMENT ONLY.
 """
+
 import asyncio
 import sys
 from datetime import datetime, timedelta
@@ -74,13 +75,10 @@ async def seed_data():
                     "primary": "#334155",
                     "secondary": "#94a3b8",
                     "background": "#f8fafc",
-                    "text": "#0f172a"
+                    "text": "#0f172a",
                 },
-                "fonts": {
-                    "heading": "Inter",
-                    "body": "Inter"
-                }
-            }
+                "fonts": {"heading": "Inter", "body": "Inter"},
+            },
         )
         db.add(bmx_app)
         await db.flush()
@@ -105,11 +103,13 @@ async def seed_data():
 
         # BMX Clients
         bmx_clients = []
-        for i, (name, phone) in enumerate([
-            ("Santiago Ramírez", "+57 301 111 1111"),
-            ("Valentina Torres", "+57 302 222 2222"),
-            ("Mateo Gómez", "+57 303 333 3333"),
-        ]):
+        for _i, (name, phone) in enumerate(
+            [
+                ("Santiago Ramírez", "+57 301 111 1111"),
+                ("Valentina Torres", "+57 302 222 2222"),
+                ("Mateo Gómez", "+57 303 333 3333"),
+            ]
+        ):
             client = Client(
                 trainer_id=bmx_trainer.id,
                 name=name,
@@ -128,33 +128,47 @@ async def seed_data():
                 "discipline_type": "bmx",
                 "field_schema": {
                     "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
-                    "tiempos_vuelta": {"type": "array", "label": "Tiempos por Vuelta", "itemType": "duration", "required": False},
-                }
+                    "duracion_total": {
+                        "type": "duration",
+                        "label": "Duración Total",
+                        "required": True,
+                    },
+                    "tiempos_vuelta": {
+                        "type": "array",
+                        "label": "Tiempos por Vuelta",
+                        "itemType": "duration",
+                        "required": False,
+                    },
+                },
             },
             {
                 "name": "Pump track",
                 "discipline_type": "bmx",
                 "field_schema": {
                     "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
-                }
+                    "duracion_total": {
+                        "type": "duration",
+                        "label": "Duración Total",
+                        "required": True,
+                    },
+                },
             },
             {
                 "name": "Práctica de curvas",
                 "discipline_type": "bmx",
                 "field_schema": {
                     "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
-                }
+                    "duracion_total": {
+                        "type": "duration",
+                        "label": "Duración Total",
+                        "required": True,
+                    },
+                },
             },
         ]
 
         for template_data in bmx_templates:
-            template = ExerciseTemplate(
-                trainer_app_id=bmx_app.id,
-                **template_data
-            )
+            template = ExerciseTemplate(trainer_app_id=bmx_app.id, **template_data)
             db.add(template)
         await db.flush()
         print(f"  ✓ Created {len(bmx_templates)} BMX exercise templates")
@@ -192,10 +206,7 @@ async def seed_data():
         ]
 
         for session_data in bmx_sessions:
-            session = TrainingSession(
-                trainer_id=bmx_trainer.id,
-                **session_data
-            )
+            session = TrainingSession(trainer_id=bmx_trainer.id, **session_data)
             db.add(session)
         await db.flush()
         print(f"  ✓ Created {len(bmx_sessions)} BMX sessions")
@@ -225,13 +236,10 @@ async def seed_data():
                     "primary": "#1e3a8a",
                     "secondary": "#3b82f6",
                     "background": "#f8fafc",
-                    "text": "#0f172a"
+                    "text": "#0f172a",
                 },
-                "fonts": {
-                    "heading": "Inter",
-                    "body": "Inter"
-                }
-            }
+                "fonts": {"heading": "Inter", "body": "Inter"},
+            },
         )
         db.add(physio_app)
         await db.flush()
@@ -269,11 +277,13 @@ async def seed_data():
 
         # Physio Clients
         physio_clients = []
-        for i, (name, phone, email) in enumerate([
-            ("Ana García", "+57 301 444 4444", "ana@example.com"),
-            ("Carlos Rodríguez", "+57 302 555 5555", "carlos@example.com"),
-            ("María López", "+57 303 666 6666", "maria@example.com"),
-        ]):
+        for _i, (name, phone, email) in enumerate(
+            [
+                ("Ana García", "+57 301 444 4444", "ana@example.com"),
+                ("Carlos Rodríguez", "+57 302 555 5555", "carlos@example.com"),
+                ("María López", "+57 303 666 6666", "maria@example.com"),
+            ]
+        ):
             client = Client(
                 trainer_id=physio_trainer.id,
                 name=name,
@@ -295,7 +305,7 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "peso": {"type": "float", "label": "Peso (kg)", "required": False},
-                }
+                },
             },
             {
                 "name": "Press de banca",
@@ -304,7 +314,7 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "peso": {"type": "float", "label": "Peso (kg)", "required": False},
-                }
+                },
             },
             {
                 "name": "Peso muerto",
@@ -313,7 +323,7 @@ async def seed_data():
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
                     "peso": {"type": "float", "label": "Peso (kg)", "required": False},
-                }
+                },
             },
             {
                 "name": "Plancha",
@@ -321,16 +331,17 @@ async def seed_data():
                 "field_schema": {
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
-                    "duracion_segundos": {"type": "integer", "label": "Duración (seg)", "required": False},
-                }
+                    "duracion_segundos": {
+                        "type": "integer",
+                        "label": "Duración (seg)",
+                        "required": False,
+                    },
+                },
             },
         ]
 
         for template_data in physio_templates:
-            template = ExerciseTemplate(
-                trainer_app_id=physio_app.id,
-                **template_data
-            )
+            template = ExerciseTemplate(trainer_app_id=physio_app.id, **template_data)
             db.add(template)
         await db.flush()
         print(f"  ✓ Created {len(physio_templates)} Physio exercise templates")
@@ -394,10 +405,7 @@ async def seed_data():
         ]
 
         for session_data in physio_sessions:
-            session = TrainingSession(
-                trainer_id=physio_trainer.id,
-                **session_data
-            )
+            session = TrainingSession(trainer_id=physio_trainer.id, **session_data)
             db.add(session)
         await db.flush()
         print(f"  ✓ Created {len(physio_sessions)} Physio sessions")
@@ -417,10 +425,22 @@ async def seed_data():
 
         # Reset sequences
         import sqlalchemy as sa
-        for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'exercise_templates', 'training_sessions', 'session_groups', 'payments']:
-            await db.execute(sa.text(
-                f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
-            ))
+
+        for table in [
+            "trainers",
+            "trainer_apps",
+            "locations",
+            "clients",
+            "exercise_templates",
+            "training_sessions",
+            "session_groups",
+            "payments",
+        ]:
+            await db.execute(
+                sa.text(
+                    f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
+                )
+            )
         print("\n  ✓ Sequences reset")
 
         # Commit all changes

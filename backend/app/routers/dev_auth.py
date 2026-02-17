@@ -4,6 +4,7 @@ Development-only authentication bypass.
 SECURITY WARNING: This module MUST be disabled in production.
 Only use for E2E testing in development environments.
 """
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,10 +22,10 @@ settings = get_settings()
 async def dev_login(db: AsyncSession = Depends(get_db)):
     """
     DEV ONLY: Bypass Google OAuth and return test trainer data.
-    
+
     This endpoint is ONLY available when DEV_AUTH_BYPASS=true.
     Returns the same structure as the Google OAuth exchange endpoint.
-    
+
     Security: Returns 404 if dev auth is disabled.
     """
     # CRITICAL: Fail closed if dev auth is not explicitly enabled
@@ -32,27 +33,20 @@ async def dev_login(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Not found")
 
     if not settings.dev_trainer_id:
-        raise HTTPException(
-            status_code=500,
-            detail="DEV_TRAINER_ID not configured"
-        )
+        raise HTTPException(status_code=500, detail="DEV_TRAINER_ID not configured")
 
     # Fetch dev trainer
-    result = await db.execute(
-        select(Trainer).where(Trainer.id == settings.dev_trainer_id)
-    )
+    result = await db.execute(select(Trainer).where(Trainer.id == settings.dev_trainer_id))
     trainer = result.scalar_one_or_none()
 
     if not trainer:
         raise HTTPException(
             status_code=500,
-            detail="Dev trainer not found. Run: python backend/scripts/seed_data.py"
+            detail="Dev trainer not found. Run: python backend/scripts/seed_data.py",
         )
 
     # Check if trainer has an app
-    app_result = await db.execute(
-        select(TrainerApp).where(TrainerApp.trainer_id == trainer.id)
-    )
+    app_result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer.id))
     app = app_result.scalar_one_or_none()
 
     # Return same structure as Google OAuth exchange
@@ -84,9 +78,7 @@ async def dev_onboarding(db: AsyncSession = Depends(get_db)):
     # Look for or create a test trainer for onboarding
     test_email = "test-onboarding@trainer.dev"
 
-    result = await db.execute(
-        select(Trainer).where(Trainer.email == test_email)
-    )
+    result = await db.execute(select(Trainer).where(Trainer.email == test_email))
     trainer = result.scalar_one_or_none()
 
     if not trainer:
@@ -102,9 +94,7 @@ async def dev_onboarding(db: AsyncSession = Depends(get_db)):
         await db.refresh(trainer)
     else:
         # Clear existing app if any to allow re-testing
-        await db.execute(
-            TrainerApp.__table__.delete().where(TrainerApp.trainer_id == trainer.id)
-        )
+        await db.execute(TrainerApp.__table__.delete().where(TrainerApp.trainer_id == trainer.id))
         # Reset trainer fields for fresh onboarding
         trainer.phone = None
         trainer.logo_url = None
@@ -126,10 +116,10 @@ async def dev_onboarding(db: AsyncSession = Depends(get_db)):
 async def dev_login_discipline(discipline: str, db: AsyncSession = Depends(get_db)):
     """
     DEV ONLY: Login as specific discipline trainer (bmx or physio).
-    
+
     This endpoint is ONLY available when DEV_AUTH_BYPASS=true.
     Returns the same structure as the Google OAuth exchange endpoint.
-    
+
     Security: Returns 404 if dev auth is disabled.
     """
     # CRITICAL: Fail closed if dev auth is not explicitly enabled
@@ -140,21 +130,17 @@ async def dev_login_discipline(discipline: str, db: AsyncSession = Depends(get_d
         raise HTTPException(status_code=400, detail="Invalid discipline. Use 'bmx' or 'physio'")
 
     # Find trainer with matching discipline
-    result = await db.execute(
-        select(Trainer).where(Trainer.discipline_type == discipline).limit(1)
-    )
+    result = await db.execute(select(Trainer).where(Trainer.discipline_type == discipline).limit(1))
     trainer = result.scalar_one_or_none()
 
     if not trainer:
         raise HTTPException(
             status_code=500,
-            detail=f"{discipline.upper()} trainer not found. Run: python backend/scripts/seed_data.py"
+            detail=f"{discipline.upper()} trainer not found. Run: python backend/scripts/seed_data.py",
         )
 
     # Check if trainer has an app
-    app_result = await db.execute(
-        select(TrainerApp).where(TrainerApp.trainer_id == trainer.id)
-    )
+    app_result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer.id))
     app = app_result.scalar_one_or_none()
 
     # Return same structure as Google OAuth exchange

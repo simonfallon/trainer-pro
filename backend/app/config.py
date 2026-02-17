@@ -1,6 +1,7 @@
 """
 Trainer-Pro Backend Configuration
 """
+
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings

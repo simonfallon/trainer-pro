@@ -1,6 +1,7 @@
 """
 Session API Integration Tests
 """
+
 from datetime import datetime, timedelta
 
 from httpx import AsyncClient

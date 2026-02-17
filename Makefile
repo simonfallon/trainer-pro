@@ -1,4 +1,4 @@
-.PHONY: help install hooks db-up db-down db-reset migrate seed backend frontend test-backend test-frontend lint format
+.PHONY: help install hooks db-up db-down db-reset migrate seed backend frontend test-backend test-frontend lint
 
 # Ensure Poetry always uses the project venv, not a stale $VIRTUAL_ENV
 unexport VIRTUAL_ENV
@@ -55,10 +55,7 @@ test-frontend: ## Run frontend tests
 
 # --- Code Quality ---
 
-lint: ## Lint backend code
-	cd backend && poetry run ruff check .
-
-format: ## Format all code (backend + frontend)
+lint: ## Lint + format all code (backend + frontend)
 	cd backend && poetry run ruff format .
 	cd backend && poetry run ruff check --fix .
 	cd frontend && npx prettier --write "src/**/*.{ts,tsx,js,jsx,json,css,md}"

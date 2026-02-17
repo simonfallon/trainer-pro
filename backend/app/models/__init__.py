@@ -1,6 +1,7 @@
 """
 SQLAlchemy Models Package
 """
+
 from app.models.app import TrainerApp
 from app.models.client import Client
 from app.models.exercise_set import ExerciseSet

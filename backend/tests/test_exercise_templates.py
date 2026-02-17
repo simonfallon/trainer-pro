@@ -1,6 +1,7 @@
 """
 Exercise Template API Integration Tests
 """
+
 from httpx import AsyncClient
 
 from app.models import ExerciseTemplate, TrainerApp
@@ -42,7 +43,11 @@ class TestExerciseTemplateEndpoints:
                 "discipline_type": "bmx",
                 "field_schema": {
                     "runs": {"type": "integer", "label": "Runs", "required": True},
-                    "duracion_total": {"type": "duration", "label": "Duración Total", "required": True},
+                    "duracion_total": {
+                        "type": "duration",
+                        "label": "Duración Total",
+                        "required": True,
+                    },
                 },
             },
         )
@@ -52,7 +57,9 @@ class TestExerciseTemplateEndpoints:
         assert data["name"] == "Entrenamiento de pista"
         assert data["discipline_type"] == "bmx"
 
-    async def test_get_exercise_template(self, client: AsyncClient, test_exercise_template: ExerciseTemplate):
+    async def test_get_exercise_template(
+        self, client: AsyncClient, test_exercise_template: ExerciseTemplate
+    ):
         """Test retrieving an exercise template by ID."""
         response = await client.get(f"/exercise-templates/{test_exercise_template.id}")
 
@@ -67,7 +74,9 @@ class TestExerciseTemplateEndpoints:
 
         assert response.status_code == 404
 
-    async def test_list_exercise_templates(self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate):
+    async def test_list_exercise_templates(
+        self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate
+    ):
         """Test listing all templates for a trainer app."""
         response = await client.get(
             "/exercise-templates",
@@ -100,7 +109,9 @@ class TestExerciseTemplateEndpoints:
         assert any(t["id"] == test_exercise_template.id for t in data)
         assert not any(t["id"] == test_bmx_template.id for t in data)
 
-    async def test_update_exercise_template(self, client: AsyncClient, test_exercise_template: ExerciseTemplate):
+    async def test_update_exercise_template(
+        self, client: AsyncClient, test_exercise_template: ExerciseTemplate
+    ):
         """Test updating an exercise template."""
         response = await client.put(
             f"/exercise-templates/{test_exercise_template.id}",
@@ -120,7 +131,9 @@ class TestExerciseTemplateEndpoints:
         assert data["name"] == "Sentadillas modificadas"
         assert "variaciones" in data["field_schema"]
 
-    async def test_delete_exercise_template(self, client: AsyncClient, test_exercise_template: ExerciseTemplate):
+    async def test_delete_exercise_template(
+        self, client: AsyncClient, test_exercise_template: ExerciseTemplate
+    ):
         """Test deleting an exercise template."""
         response = await client.delete(f"/exercise-templates/{test_exercise_template.id}")
         assert response.status_code == 204
@@ -129,7 +142,9 @@ class TestExerciseTemplateEndpoints:
         get_response = await client.get(f"/exercise-templates/{test_exercise_template.id}")
         assert get_response.status_code == 404
 
-    async def test_autocomplete_exercise_templates(self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate):
+    async def test_autocomplete_exercise_templates(
+        self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate
+    ):
         """Test autocomplete search by exact name prefix."""
         response = await client.get(
             "/exercise-templates/autocomplete",
@@ -141,7 +156,9 @@ class TestExerciseTemplateEndpoints:
         assert len(data) >= 1
         assert any(t["name"] == "Sentadillas" for t in data)
 
-    async def test_autocomplete_fuzzy_matching(self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate):
+    async def test_autocomplete_fuzzy_matching(
+        self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate
+    ):
         """Test autocomplete with typos/variations (fuzzy matching)."""
         # Test partial match - "sentad" should match "Sentadillas"
         response = await client.get(
@@ -187,7 +204,9 @@ class TestExerciseTemplateEndpoints:
         data = response.json()
         assert any(t["name"] == "Press de banca" for t in data)
 
-    async def test_autocomplete_case_insensitive(self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate):
+    async def test_autocomplete_case_insensitive(
+        self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate
+    ):
         """Test autocomplete is case-insensitive."""
         # Test uppercase
         response = await client.get(
@@ -209,7 +228,9 @@ class TestExerciseTemplateEndpoints:
         data = response.json()
         assert any(t["name"] == "Sentadillas" for t in data)
 
-    async def test_autocomplete_empty_query(self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate):
+    async def test_autocomplete_empty_query(
+        self, client: AsyncClient, test_app: TrainerApp, test_exercise_template: ExerciseTemplate
+    ):
         """Test autocomplete with empty query returns all templates."""
         response = await client.get(
             "/exercise-templates/autocomplete",

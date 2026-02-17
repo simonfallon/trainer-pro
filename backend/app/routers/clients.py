@@ -1,6 +1,7 @@
 """
 Clients API Router
 """
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -162,7 +163,7 @@ async def get_client_payment_balance(
     # Count sessions (only completed and scheduled, not cancelled)
     sessions_query = select(TrainingSession).where(
         TrainingSession.client_id == client_id,
-        TrainingSession.status.in_([SessionStatus.COMPLETED.value, SessionStatus.SCHEDULED.value])
+        TrainingSession.status.in_([SessionStatus.COMPLETED.value, SessionStatus.SCHEDULED.value]),
     )
     sessions_result = await db.execute(sessions_query)
     sessions = sessions_result.scalars().all()
@@ -184,7 +185,9 @@ async def get_client_payment_balance(
 
     # Prepaid = sessions paid in payments - sessions marked as paid (that used those payments)
     # Simple model: prepaid = paid_sessions - total_sessions if positive
-    prepaid_sessions = max(0, paid_sessions - total_sessions) if paid_sessions > total_sessions else 0
+    prepaid_sessions = (
+        max(0, paid_sessions - total_sessions) if paid_sessions > total_sessions else 0
+    )
     # More accurate: check payment records vs actual used sessions
     prepaid_sessions = max(0, total_paid_through_payments - total_sessions)
 
@@ -198,7 +201,9 @@ async def get_client_payment_balance(
     )
 
 
-@router.post("/{client_id}/payments", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{client_id}/payments", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED
+)
 async def register_client_payment(
     client_id: int,
     payment_data: PaymentCreate,
@@ -234,8 +239,10 @@ async def register_client_payment(
         select(TrainingSession)
         .where(
             TrainingSession.client_id == client_id,
-            TrainingSession.is_paid == False,
-            TrainingSession.status.in_([SessionStatus.COMPLETED.value, SessionStatus.SCHEDULED.value])
+            TrainingSession.is_paid.is_(False),
+            TrainingSession.status.in_(
+                [SessionStatus.COMPLETED.value, SessionStatus.SCHEDULED.value]
+            ),
         )
         .order_by(TrainingSession.scheduled_at.asc())
         .limit(payment_data.sessions_paid)

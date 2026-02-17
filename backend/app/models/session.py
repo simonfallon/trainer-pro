@@ -1,6 +1,7 @@
 """
 Training Session Model
 """
+
 from datetime import datetime
 from enum import Enum as PyEnum
 
@@ -12,6 +13,7 @@ from app.database import Base
 
 class SessionStatus(str, PyEnum):
     """Training session status."""
+
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"

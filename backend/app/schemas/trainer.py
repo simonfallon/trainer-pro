@@ -1,6 +1,7 @@
 """
 Trainer Schemas
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -8,6 +9,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class TrainerBase(BaseModel):
     """Base trainer schema."""
+
     name: str = Field(..., min_length=1, max_length=255)
     phone: str | None = Field(None, min_length=1, max_length=50)
     email: EmailStr
@@ -19,6 +21,7 @@ class TrainerBase(BaseModel):
     def validate_google_email(cls, v: str) -> str:
         # Skip validation in dev mode to allow test emails
         from app.config import get_settings
+
         settings = get_settings()
         if settings.dev_auth_bypass:
             return v
@@ -30,11 +33,13 @@ class TrainerBase(BaseModel):
 
 class TrainerCreate(TrainerBase):
     """Schema for creating a trainer."""
+
     pass
 
 
 class TrainerUpdate(BaseModel):
     """Schema for updating a trainer."""
+
     name: str | None = Field(None, min_length=1, max_length=255)
     phone: str | None = Field(None, min_length=1, max_length=50)
     email: EmailStr | None = None
@@ -48,6 +53,7 @@ class TrainerUpdate(BaseModel):
 
         # Skip validation in dev mode to allow test emails
         from app.config import get_settings
+
         settings = get_settings()
         if settings.dev_auth_bypass:
             return v
@@ -59,6 +65,7 @@ class TrainerUpdate(BaseModel):
 
 class TrainerResponse(TrainerBase):
     """Schema for trainer response."""
+
     id: int
     google_id: str | None = None
     logo_url: str | None = None

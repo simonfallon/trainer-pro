@@ -1,6 +1,7 @@
 """
 Sessions API Router
 """
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -96,6 +97,7 @@ async def get_session_stats(
 
 # Active Session Endpoints (must come before /{session_id} to avoid routing conflicts)
 
+
 @router.get("/current", response_model=SessionResponse | None)
 async def get_current_session(
     trainer_id: int = Query(..., description="Trainer ID"),
@@ -121,7 +123,11 @@ async def get_current_session(
     return result.scalars().first()
 
 
-@router.post("/active/start", response_model=SessionResponse | SessionGroupResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/active/start",
+    response_model=SessionResponse | SessionGroupResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def start_active_session(
     data: StartActiveSessionRequest,
     db: AsyncSession = Depends(get_db),
@@ -246,9 +252,7 @@ async def get_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a session by ID."""
-    result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -289,9 +293,7 @@ async def update_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Update a session."""
-    result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -318,9 +320,7 @@ async def delete_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel a session (soft cancel via status change)."""
-    result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -339,9 +339,7 @@ async def toggle_session_payment(
     db: AsyncSession = Depends(get_db),
 ):
     """Toggle the payment status of a session."""
-    result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -425,147 +423,6 @@ async def list_session_groups(
     query = query.order_by(SessionGroup.scheduled_at)
     result = await db.execute(query)
     return result.scalars().all()
-async def get_current_session(
-    trainer_id: int = Query(..., description="Trainer ID"),
-    tolerance_minutes: int = Query(15, description="Tolerance in minutes"),
-    db: AsyncSession = Depends(get_db),
-):
-    """Find session scheduled within tolerance (±minutes) of current time."""
-    from datetime import timedelta
-
-    now = datetime.utcnow()
-    start_time = now - timedelta(minutes=tolerance_minutes)
-    end_time = now + timedelta(minutes=tolerance_minutes)
-
-    result = await db.execute(
-        select(TrainingSession)
-        .where(TrainingSession.trainer_id == trainer_id)
-        .where(TrainingSession.status == SessionStatus.SCHEDULED.value)
-        .where(TrainingSession.scheduled_at >= start_time)
-        .where(TrainingSession.scheduled_at <= end_time)
-        .order_by(TrainingSession.scheduled_at)
-    )
-
-    return result.scalars().first()
-
-
-@router.post("/active/start", response_model=SessionResponse | SessionGroupResponse, status_code=status.HTTP_201_CREATED)
-async def start_active_session(
-    data: StartActiveSessionRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Start or create an active session."""
-    now = datetime.utcnow()
-
-    if data.session_id:
-        # Start existing session
-        result = await db.execute(
-            select(TrainingSession).where(TrainingSession.id == data.session_id)
-        )
-        session = result.scalar_one_or_none()
-
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found",
-            )
-
-        # Update to in progress
-        session.status = SessionStatus.IN_PROGRESS.value
-        session.started_at = now
-        await db.flush()
-        await db.refresh(session)
-        return session
-
-    else:
-        # Create new ad-hoc session(s)
-        if len(data.client_ids) == 1:
-            # Single client session
-            session = TrainingSession(
-                trainer_id=data.trainer_id,
-                client_id=data.client_ids[0],
-                location_id=data.location_id,
-                scheduled_at=now,
-                started_at=now,
-                duration_minutes=data.duration_minutes,
-                notes=data.notes,
-                status=SessionStatus.IN_PROGRESS.value,
-            )
-            db.add(session)
-            await db.flush()
-            await db.refresh(session)
-            return session
-
-        else:
-            # Multiple clients - create group session
-            session_group = SessionGroup(
-                trainer_id=data.trainer_id,
-                location_id=data.location_id,
-                scheduled_at=now,
-                duration_minutes=data.duration_minutes,
-                notes=data.notes,
-            )
-            db.add(session_group)
-            await db.flush()
-
-            # Create individual sessions for each client
-            for client_id in data.client_ids:
-                session = TrainingSession(
-                    trainer_id=data.trainer_id,
-                    client_id=client_id,
-                    location_id=data.location_id,
-                    session_group_id=session_group.id,
-                    scheduled_at=now,
-                    started_at=now,
-                    duration_minutes=data.duration_minutes,
-                    notes=data.notes,
-                    status=SessionStatus.IN_PROGRESS.value,
-                )
-                db.add(session)
-
-            await db.flush()
-
-            # Reload with relationships
-            result = await db.execute(
-                select(SessionGroup)
-                .options(selectinload(SessionGroup.sessions))
-                .where(SessionGroup.id == session_group.id)
-            )
-            session_group = result.scalar_one()
-            return session_group
-
-
-@router.get("/active", response_model=SessionResponse | SessionGroupResponse | None)
-async def get_active_session(
-    trainer_id: int = Query(..., description="Trainer ID"),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get current active session for trainer."""
-    # Try to find an active individual session first
-    result = await db.execute(
-        select(TrainingSession)
-        .where(TrainingSession.trainer_id == trainer_id)
-        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
-        .where(TrainingSession.session_group_id.is_(None))
-        .order_by(TrainingSession.started_at.desc())
-    )
-    session = result.scalars().first()
-
-    if session:
-        return session
-
-    # Check for active group session
-    result = await db.execute(
-        select(SessionGroup)
-        .options(selectinload(SessionGroup.sessions))
-        .join(TrainingSession, SessionGroup.id == TrainingSession.session_group_id)
-        .where(SessionGroup.trainer_id == trainer_id)
-        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
-        .order_by(SessionGroup.scheduled_at.desc())
-        .distinct()
-    )
-
-    return result.scalars().first()
 
 
 @router.patch("/{session_id}/client-notes", response_model=SessionResponse)
@@ -577,9 +434,7 @@ async def save_client_notes(
     """Save notes for a specific client during active session."""
     import json
 
-    result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -620,9 +475,7 @@ async def save_lap_times(
     """Save BMX lap times as a session exercise."""
     from app.models.session_exercise import SessionExercise
 
-    result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
     if not session:
@@ -641,8 +494,9 @@ async def save_lap_times(
 
     # Get the next order index
     result = await db.execute(
-        select(func.max(SessionExercise.order_index))
-        .where(SessionExercise.session_id == session_id)
+        select(func.max(SessionExercise.order_index)).where(
+            SessionExercise.session_id == session_id
+        )
     )
     max_order = result.scalar() or -1
 

@@ -9,6 +9,7 @@ router = APIRouter()
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+
 @router.post("/image")
 async def upload_image(file: UploadFile = File(...)):
     """
@@ -27,6 +28,6 @@ async def upload_image(file: UploadFile = File(...)):
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}") from e
 
     return {"url": f"/uploads/{unique_filename}"}

@@ -1,6 +1,7 @@
 """
 Integration tests for Exercise Sets API
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -71,7 +72,9 @@ async def test_create_exercise_set_for_group(client: AsyncClient, test_session_g
         ],
     }
 
-    response = await client.post(f"/exercise-sets/session-groups/{test_session_group.id}", json=set_data)
+    response = await client.post(
+        f"/exercise-sets/session-groups/{test_session_group.id}", json=set_data
+    )
     assert response.status_code == 201
 
     exercise_set = response.json()
@@ -241,7 +244,9 @@ async def test_exercise_set_xor_constraint(client: AsyncClient, test_session, te
     assert resp1.json()["session_group_id"] is None
 
     # Create set for group - should work
-    resp2 = await client.post(f"/exercise-sets/session-groups/{test_session_group.id}", json=set_data)
+    resp2 = await client.post(
+        f"/exercise-sets/session-groups/{test_session_group.id}", json=set_data
+    )
     assert resp2.status_code == 201
     assert resp2.json()["session_id"] is None
     assert resp2.json()["session_group_id"] == test_session_group.id

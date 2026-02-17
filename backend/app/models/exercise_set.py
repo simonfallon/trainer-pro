@@ -1,6 +1,7 @@
 """
 Exercise Set Model
 """
+
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String
@@ -70,7 +71,7 @@ class ExerciseSet(Base):
         CheckConstraint(
             "(session_id IS NOT NULL AND session_group_id IS NULL) OR "
             "(session_id IS NULL AND session_group_id IS NOT NULL)",
-            name="check_set_session_xor_group"
+            name="check_set_session_xor_group",
         ),
     )
 

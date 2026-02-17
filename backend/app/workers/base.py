@@ -10,6 +10,7 @@ This provides a clean abstraction for:
 - Agent skill execution
 - Integration workflows (calendar sync, WhatsApp, etc.)
 """
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -18,6 +19,7 @@ from typing import Any
 
 class WorkerStatus(str, Enum):
     """Status of a worker job."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -27,6 +29,7 @@ class WorkerStatus(str, Enum):
 @dataclass
 class JobResult:
     """Result of a worker job execution."""
+
     status: WorkerStatus
     data: dict | None = None
     error: str | None = None
@@ -35,15 +38,15 @@ class JobResult:
 class BaseWorker(ABC):
     """
     Abstract base class for background workers.
-    
+
     Implement this class to create new automation skills.
     Workers are registered with the WorkerRegistry and can be
     triggered by events or scheduled jobs.
-    
+
     Example:
         class CalendarSyncWorker(BaseWorker):
             name = "calendar_sync"
-            
+
             async def execute(self, payload: dict) -> JobResult:
                 # Sync calendar logic here
                 return JobResult(status=WorkerStatus.COMPLETED, data={...})
@@ -56,28 +59,26 @@ class BaseWorker(ABC):
     async def execute(self, payload: dict[str, Any]) -> JobResult:
         """
         Execute the worker with the given payload.
-        
+
         Args:
             payload: Dictionary containing job-specific data
-            
+
         Returns:
             JobResult with status and optional data/error
         """
         pass
 
-    async def on_success(self, result: JobResult) -> None:
+    async def on_success(self, result: JobResult) -> None:  # noqa: B027
         """Hook called after successful execution."""
-        pass
 
-    async def on_failure(self, result: JobResult) -> None:
+    async def on_failure(self, result: JobResult) -> None:  # noqa: B027
         """Hook called after failed execution."""
-        pass
 
 
 class WorkerRegistry:
     """
     Registry for managing worker instances.
-    
+
     Provides a central location for registering, discovering,
     and dispatching work to background workers.
     """
@@ -119,14 +120,14 @@ class WorkerRegistry:
     async def dispatch(self, event: str, payload: dict[str, Any]) -> list[JobResult]:
         """
         Dispatch an event to all subscribed workers.
-        
+
         In a production setup, this would queue jobs to a message broker.
         Currently executes workers directly for simplicity.
-        
+
         Args:
             event: Event name to dispatch
             payload: Data to pass to workers
-            
+
         Returns:
             List of JobResults from all handlers
         """
@@ -160,14 +161,14 @@ class WorkerRegistry:
     ) -> JobResult:
         """
         Execute a specific worker by name.
-        
+
         Args:
             worker_name: Name of the worker to execute
             payload: Data to pass to the worker
-            
+
         Returns:
             JobResult from the worker
-            
+
         Raises:
             ValueError: If worker is not found
         """

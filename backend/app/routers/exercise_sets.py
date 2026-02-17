@@ -1,6 +1,7 @@
 """
 Exercise Sets API Router
 """
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,9 +57,7 @@ async def list_exercise_sets_for_group(
 ):
     """List all exercise sets for a session group."""
     # Verify group exists
-    group_result = await db.execute(
-        select(SessionGroup).where(SessionGroup.id == group_id)
-    )
+    group_result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
     if not group_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -75,7 +74,11 @@ async def list_exercise_sets_for_group(
     return result.scalars().all()
 
 
-@router.post("/sessions/{session_id}", response_model=ExerciseSetResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sessions/{session_id}",
+    response_model=ExerciseSetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_exercise_set_for_session(
     session_id: int,
     set_data: ExerciseSetCreate,
@@ -118,7 +121,9 @@ async def create_exercise_set_for_session(
         # Increment template usage count if using a template
         if exercise_data.exercise_template_id:
             template_result = await db.execute(
-                select(ExerciseTemplate).where(ExerciseTemplate.id == exercise_data.exercise_template_id)
+                select(ExerciseTemplate).where(
+                    ExerciseTemplate.id == exercise_data.exercise_template_id
+                )
             )
             template = template_result.scalar_one_or_none()
             if template:
@@ -140,7 +145,11 @@ async def create_exercise_set_for_session(
     return exercise_set
 
 
-@router.post("/session-groups/{group_id}", response_model=ExerciseSetResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/session-groups/{group_id}",
+    response_model=ExerciseSetResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_exercise_set_for_group(
     group_id: int,
     set_data: ExerciseSetCreate,
@@ -148,9 +157,7 @@ async def create_exercise_set_for_group(
 ):
     """Create an exercise set for a session group."""
     # Verify group exists
-    group_result = await db.execute(
-        select(SessionGroup).where(SessionGroup.id == group_id)
-    )
+    group_result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
     if not group_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -183,7 +190,9 @@ async def create_exercise_set_for_group(
         # Increment template usage count if using a template
         if exercise_data.exercise_template_id:
             template_result = await db.execute(
-                select(ExerciseTemplate).where(ExerciseTemplate.id == exercise_data.exercise_template_id)
+                select(ExerciseTemplate).where(
+                    ExerciseTemplate.id == exercise_data.exercise_template_id
+                )
             )
             template = template_result.scalar_one_or_none()
             if template:
@@ -234,9 +243,7 @@ async def update_exercise_set(
     db: AsyncSession = Depends(get_db),
 ):
     """Update exercise set metadata (name and/or series)."""
-    result = await db.execute(
-        select(ExerciseSet).where(ExerciseSet.id == set_id)
-    )
+    result = await db.execute(select(ExerciseSet).where(ExerciseSet.id == set_id))
     exercise_set = result.scalar_one_or_none()
 
     if not exercise_set:
@@ -261,9 +268,7 @@ async def update_exercise_set_exercises(
     db: AsyncSession = Depends(get_db),
 ):
     """Update exercises within a set (add, remove, modify)."""
-    result = await db.execute(
-        select(ExerciseSet).where(ExerciseSet.id == set_id)
-    )
+    result = await db.execute(select(ExerciseSet).where(ExerciseSet.id == set_id))
     exercise_set = result.scalar_one_or_none()
 
     if not exercise_set:
@@ -290,7 +295,7 @@ async def update_exercise_set_exercises(
             )
             exercise = exercise_result.scalar_one()
 
-            update_dict = exercise_data.model_dump(exclude_unset=True, exclude={'id'})
+            update_dict = exercise_data.model_dump(exclude_unset=True, exclude={"id"})
             for field, value in update_dict.items():
                 if value is not None:
                     setattr(exercise, field, value)
@@ -301,7 +306,9 @@ async def update_exercise_set_exercises(
             # Increment template usage count if using a template
             if exercise_data.exercise_template_id:
                 template_result = await db.execute(
-                    select(ExerciseTemplate).where(ExerciseTemplate.id == exercise_data.exercise_template_id)
+                    select(ExerciseTemplate).where(
+                        ExerciseTemplate.id == exercise_data.exercise_template_id
+                    )
                 )
                 template = template_result.scalar_one_or_none()
                 if template:
@@ -340,9 +347,7 @@ async def delete_exercise_set(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete an exercise set and all its exercises."""
-    result = await db.execute(
-        select(ExerciseSet).where(ExerciseSet.id == set_id)
-    )
+    result = await db.execute(select(ExerciseSet).where(ExerciseSet.id == set_id))
     exercise_set = result.scalar_one_or_none()
 
     if not exercise_set:
@@ -363,9 +368,7 @@ async def reorder_exercise_set_exercises(
 ):
     """Reorder exercises within a set."""
     # Verify set exists
-    set_result = await db.execute(
-        select(ExerciseSet).where(ExerciseSet.id == set_id)
-    )
+    set_result = await db.execute(select(ExerciseSet).where(ExerciseSet.id == set_id))
     if not set_result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -376,8 +379,7 @@ async def reorder_exercise_set_exercises(
     for index, exercise_id in enumerate(exercise_ids):
         result = await db.execute(
             select(SessionExercise).where(
-                SessionExercise.id == exercise_id,
-                SessionExercise.exercise_set_id == set_id
+                SessionExercise.id == exercise_id, SessionExercise.exercise_set_id == set_id
             )
         )
         exercise = result.scalar_one_or_none()

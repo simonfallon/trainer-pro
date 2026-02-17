@@ -1,6 +1,7 @@
 """
 Payment Schemas
 """
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class PaymentCreate(BaseModel):
     """Schema for creating a payment (registering bulk session payments)."""
+
     sessions_paid: int = Field(..., ge=1, le=100, description="Number of sessions being paid")
     amount_cop: int = Field(..., ge=0, description="Total amount in Colombian Pesos")
     notes: str | None = None
@@ -16,6 +18,7 @@ class PaymentCreate(BaseModel):
 
 class PaymentResponse(BaseModel):
     """Schema for payment response."""
+
     id: int
     client_id: int
     trainer_id: int
@@ -31,10 +34,10 @@ class PaymentResponse(BaseModel):
 
 class PaymentBalanceResponse(BaseModel):
     """Schema for client payment balance."""
+
     total_sessions: int = Field(..., description="Total completed/scheduled sessions")
     paid_sessions: int = Field(..., description="Number of paid sessions")
     unpaid_sessions: int = Field(..., description="Number of unpaid sessions")
     prepaid_sessions: int = Field(..., description="Sessions paid in advance (positive balance)")
     has_positive_balance: bool = Field(..., description="True if client has prepaid sessions")
     total_amount_paid_cop: int = Field(..., description="Total amount paid in Colombian Pesos")
-

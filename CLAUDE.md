@@ -24,8 +24,7 @@ make backend          # Start backend dev server (:8000)
 make frontend         # Start frontend dev server (:3000)
 make test-backend     # Run pytest
 make test-frontend    # Run vitest
-make lint             # Lint backend with ruff
-make format           # Format all code (ruff + prettier)
+make lint             # Lint + format all code (ruff + prettier)
 ```
 
 ### Database Setup
