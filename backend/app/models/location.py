@@ -3,7 +3,8 @@ Location Model
 """
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, DateTime, ForeignKey, Numeric, Integer
+
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -20,9 +21,9 @@ class LocationType(str, PyEnum):
 
 class Location(Base):
     """Location entity - training venues and spots."""
-    
+
     __tablename__ = "locations"
-    
+
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
@@ -39,7 +40,7 @@ class Location(Base):
         default=LocationType.OTHER.value,
         nullable=False,
     )
-    
+
     # Address fields
     address_line1: Mapped[str | None] = mapped_column(String(255), nullable=True)
     address_line2: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -47,12 +48,12 @@ class Location(Base):
     region: Mapped[str | None] = mapped_column(String(100), nullable=True)
     postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    
+
     # Geo coordinates
     latitude: Mapped[float | None] = mapped_column(Numeric(10, 8), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(11, 8), nullable=True)
     google_place_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
@@ -62,7 +63,7 @@ class Location(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
-    
+
     # Relationships
     trainer: Mapped["Trainer"] = relationship(
         "Trainer",
@@ -81,13 +82,13 @@ class Location(Base):
         "SessionGroup",
         back_populates="location",
     )
-    
+
     def __repr__(self) -> str:
         return f"<Location {self.name} ({self.type})>"
 
 
 # Import for type hints
-from app.models.trainer import Trainer
 from app.models.client import Client
 from app.models.session import TrainingSession
 from app.models.session_group import SessionGroup
+from app.models.trainer import Trainer

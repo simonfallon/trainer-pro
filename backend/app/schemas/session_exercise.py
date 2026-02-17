@@ -2,7 +2,8 @@
 Session Exercise Schemas
 """
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
+
+from pydantic import BaseModel, Field
 
 
 class SessionExerciseBase(BaseModel):
@@ -17,7 +18,7 @@ class SessionExerciseCreate(SessionExerciseBase):
     """Schema for creating a session exercise."""
     session_id: int | None = None
     session_group_id: int | None = None
-    
+
     # Note: XOR validation is handled by the router via path parameters
     # The router will set either session_id or session_group_id based on the endpoint
 
@@ -37,7 +38,7 @@ class SessionExerciseResponse(SessionExerciseBase):
     session_group_id: int | None
     exercise_set_id: int | None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

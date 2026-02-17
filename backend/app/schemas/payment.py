@@ -2,6 +2,7 @@
 Payment Schemas
 """
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -23,7 +24,7 @@ class PaymentResponse(BaseModel):
     payment_date: datetime
     notes: str | None = None
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 

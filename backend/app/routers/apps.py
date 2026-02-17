@@ -1,13 +1,13 @@
 """
 Apps API Router
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.app import TrainerApp
-from app.schemas.app import AppCreate, AppUpdate, AppResponse
+from app.schemas.app import AppCreate, AppResponse, AppUpdate
 
 router = APIRouter()
 
@@ -32,13 +32,13 @@ async def get_app(
     """Get an app by ID."""
     result = await db.execute(select(TrainerApp).where(TrainerApp.id == app_id))
     app = result.scalar_one_or_none()
-    
+
     if not app:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="App not found",
         )
-    
+
     return app
 
 
@@ -69,20 +69,20 @@ async def update_app(
     """Update an app."""
     result = await db.execute(select(TrainerApp).where(TrainerApp.id == app_id))
     app = result.scalar_one_or_none()
-    
+
     if not app:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="App not found",
         )
-    
+
     update_data = app_data.model_dump(exclude_unset=True)
     if "theme_config" in update_data and update_data["theme_config"]:
         update_data["theme_config"] = update_data["theme_config"]
-    
+
     for field, value in update_data.items():
         setattr(app, field, value)
-    
+
     await db.flush()
     await db.refresh(app)
     return app

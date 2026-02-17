@@ -2,6 +2,7 @@
 App Schemas
 """
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -36,6 +37,6 @@ class AppResponse(AppBase):
     trainer_id: int
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True

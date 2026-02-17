@@ -5,14 +5,14 @@ This module provides shared fixtures for integration tests that interact
 with a real PostgreSQL test database. Tests run within transactions that
 are rolled back after each test to maintain test isolation.
 """
-import os
 import asyncio
-from typing import AsyncGenerator
+import os
+from collections.abc import AsyncGenerator
 from datetime import datetime
 
 import pytest
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # Set test environment before importing app modules
 os.environ["DATABASE_URL"] = os.getenv(
@@ -20,10 +20,16 @@ os.environ["DATABASE_URL"] = os.getenv(
     "postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test"
 )
 
-from app.main import app
 from app.database import Base, get_db
-from app.models import Trainer, Client, TrainingSession, Payment, TrainerApp, ExerciseTemplate, SessionExercise
-
+from app.main import app
+from app.models import (
+    Client,
+    ExerciseTemplate,
+    SessionExercise,
+    Trainer,
+    TrainerApp,
+    TrainingSession,
+)
 
 # Create test engine
 test_engine = create_async_engine(
@@ -80,13 +86,13 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -151,7 +157,7 @@ async def test_session_group(
 ) -> "SessionGroup":
     """Create a test session group."""
     from app.models import SessionGroup
-    
+
     group = SessionGroup(
         trainer_id=test_trainer.id,
         scheduled_at=datetime.now(),

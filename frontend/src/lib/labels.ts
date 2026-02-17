@@ -8,15 +8,15 @@
 // ---------------------------------------------------------------------------
 
 export const LOCATION_TYPE_LABELS: Record<string, string> = {
-    gym:          'Gimnasio',
-    track:        'Pista/Cancha',
-    trainer_base: 'Base del Entrenador',
-    client_home:  'Casa del Cliente',
-    other:        'Otro',
+  gym: "Gimnasio",
+  track: "Pista/Cancha",
+  trainer_base: "Base del Entrenador",
+  client_home: "Casa del Cliente",
+  other: "Otro",
 };
 
 export function getLocationTypeLabel(type: string): string {
-    return LOCATION_TYPE_LABELS[type] || type;
+  return LOCATION_TYPE_LABELS[type] || type;
 }
 
 // ---------------------------------------------------------------------------
@@ -24,7 +24,7 @@ export function getLocationTypeLabel(type: string): string {
 // ---------------------------------------------------------------------------
 
 export const SESSION_STATUS_LABELS: Record<string, string> = {
-    completed: 'Completada',
-    scheduled: 'Programada',
-    cancelled: 'Cancelada',
+  completed: "Completada",
+  scheduled: "Programada",
+  cancelled: "Cancelada",
 };

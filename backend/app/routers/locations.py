@@ -1,13 +1,13 @@
 """
 Locations API Router
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.location import Location
-from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse
+from app.schemas.location import LocationCreate, LocationResponse, LocationUpdate
 
 router = APIRouter()
 
@@ -32,13 +32,13 @@ async def get_location(
     """Get a location by ID."""
     result = await db.execute(select(Location).where(Location.id == location_id))
     location = result.scalar_one_or_none()
-    
+
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Location not found",
         )
-    
+
     return location
 
 
@@ -77,20 +77,20 @@ async def update_location(
     """Update a location."""
     result = await db.execute(select(Location).where(Location.id == location_id))
     location = result.scalar_one_or_none()
-    
+
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Location not found",
         )
-    
+
     update_data = location_data.model_dump(exclude_unset=True)
     if "type" in update_data and update_data["type"]:
         update_data["type"] = update_data["type"].value
-    
+
     for field, value in update_data.items():
         setattr(location, field, value)
-    
+
     await db.flush()
     await db.refresh(location)
     return location
@@ -104,12 +104,12 @@ async def delete_location(
     """Delete a location."""
     result = await db.execute(select(Location).where(Location.id == location_id))
     location = result.scalar_one_or_none()
-    
+
     if not location:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Location not found",
         )
-    
+
     await db.delete(location)
     await db.flush()

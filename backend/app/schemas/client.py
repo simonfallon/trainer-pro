@@ -2,6 +2,7 @@
 Client Schemas
 """
 from datetime import datetime
+
 from pydantic import BaseModel, Field, computed_field
 
 
@@ -47,7 +48,7 @@ class ClientResponse(ClientBase):
     google_id: str | None = None
     created_at: datetime
     updated_at: datetime
-    
+
     @computed_field
     @property
     def age(self) -> int | None:
@@ -59,6 +60,6 @@ class ClientResponse(ClientBase):
         if (today.month, today.day) < (self.birth_date.month, self.birth_date.day):
             age -= 1
         return age
-    
+
     class Config:
         from_attributes = True

@@ -6,15 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models.session_exercise import SessionExercise
 from app.models.exercise_template import ExerciseTemplate
 from app.models.session import TrainingSession
+from app.models.session_exercise import SessionExercise
 from app.models.session_group import SessionGroup
 from app.schemas.session_exercise import (
     SessionExerciseCreate,
-    SessionExerciseUpdate,
-    SessionExerciseResponse,
     SessionExerciseReorderRequest,
+    SessionExerciseResponse,
+    SessionExerciseUpdate,
 )
 
 router = APIRouter()
@@ -35,7 +35,7 @@ async def list_session_exercises(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Training session not found",
         )
-    
+
     query = (
         select(SessionExercise)
         .where(SessionExercise.session_id == session_id)
@@ -60,7 +60,7 @@ async def list_session_group_exercises(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session group not found",
         )
-    
+
     query = (
         select(SessionExercise)
         .where(SessionExercise.session_group_id == group_id)
@@ -86,11 +86,11 @@ async def create_session_exercise(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Training session not found",
         )
-    
+
     # Override session_id from path parameter
     exercise_data.session_id = session_id
     exercise_data.session_group_id = None
-    
+
     # If using a template, increment usage count
     if exercise_data.exercise_template_id:
         template_result = await db.execute(
@@ -99,7 +99,7 @@ async def create_session_exercise(
         template = template_result.scalar_one_or_none()
         if template:
             template.usage_count += 1
-    
+
     exercise = SessionExercise(
         session_id=exercise_data.session_id,
         session_group_id=exercise_data.session_group_id,
@@ -130,11 +130,11 @@ async def create_session_group_exercise(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session group not found",
         )
-    
+
     # Override group_id from path parameter
     exercise_data.session_id = None
     exercise_data.session_group_id = group_id
-    
+
     # If using a template, increment usage count
     if exercise_data.exercise_template_id:
         template_result = await db.execute(
@@ -143,7 +143,7 @@ async def create_session_group_exercise(
         template = template_result.scalar_one_or_none()
         if template:
             template.usage_count += 1
-    
+
     exercise = SessionExercise(
         session_id=exercise_data.session_id,
         session_group_id=exercise_data.session_group_id,
@@ -169,17 +169,17 @@ async def update_session_exercise(
         select(SessionExercise).where(SessionExercise.id == exercise_id)
     )
     exercise = result.scalar_one_or_none()
-    
+
     if not exercise:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session exercise not found",
         )
-    
+
     update_data = exercise_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(exercise, field, value)
-    
+
     await db.flush()
     await db.refresh(exercise)
     return exercise
@@ -195,13 +195,13 @@ async def delete_session_exercise(
         select(SessionExercise).where(SessionExercise.id == exercise_id)
     )
     exercise = result.scalar_one_or_none()
-    
+
     if not exercise:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session exercise not found",
         )
-    
+
     await db.delete(exercise)
     await db.flush()
 
@@ -222,7 +222,7 @@ async def reorder_session_exercises(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Training session not found",
         )
-    
+
     # Update order_index for each exercise
     for index, exercise_id in enumerate(reorder_data.exercise_ids):
         result = await db.execute(
@@ -234,9 +234,9 @@ async def reorder_session_exercises(
         exercise = result.scalar_one_or_none()
         if exercise:
             exercise.order_index = index
-    
+
     await db.flush()
-    
+
     # Return updated list
     query = (
         select(SessionExercise)

@@ -2,26 +2,26 @@
 Sessions API Router
 """
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.session import TrainingSession, SessionStatus
-from app.models.session_group import SessionGroup
 from app.models.client import Client
+from app.models.session import SessionStatus, TrainingSession
+from app.models.session_group import SessionGroup
 from app.schemas.session import (
-    SessionCreate,
-    SessionUpdate,
-    SessionResponse,
-    SessionStats,
-    SessionGroupCreate,
-    SessionGroupResponse,
-    StartActiveSessionRequest,
-    ActiveSessionResponse,
     ClientNotesRequest,
     LapTimesRequest,
+    SessionCreate,
+    SessionGroupCreate,
+    SessionGroupResponse,
+    SessionResponse,
+    SessionStats,
+    SessionUpdate,
+    StartActiveSessionRequest,
 )
 
 router = APIRouter()
@@ -37,14 +37,14 @@ async def list_sessions(
 ):
     """List all sessions for a trainer with optional date range filter."""
     query = select(TrainingSession).where(TrainingSession.trainer_id == trainer_id)
-    
+
     if start_date:
         query = query.where(TrainingSession.scheduled_at >= start_date)
     if end_date:
         query = query.where(TrainingSession.scheduled_at <= end_date)
     if status_filter:
         query = query.where(TrainingSession.status == status_filter)
-    
+
     query = query.order_by(TrainingSession.scheduled_at)
     result = await db.execute(query)
     return result.scalars().all()
@@ -60,22 +60,22 @@ async def get_session_stats(
     """Get session statistics for a trainer."""
     # Build base query
     base_query = select(TrainingSession).where(TrainingSession.trainer_id == trainer_id)
-    
+
     if start_date:
         base_query = base_query.where(TrainingSession.scheduled_at >= start_date)
     if end_date:
         base_query = base_query.where(TrainingSession.scheduled_at <= end_date)
-    
+
     # Get all sessions
     result = await db.execute(base_query)
     sessions = result.scalars().all()
-    
+
     # Calculate stats
     total = len(sessions)
     completed = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED.value)
     scheduled = sum(1 for s in sessions if s.status == SessionStatus.SCHEDULED.value)
     cancelled = sum(1 for s in sessions if s.status == SessionStatus.CANCELLED.value)
-    
+
     # Get unique clients
     client_query = (
         select(func.count(func.distinct(Client.id)))
@@ -84,7 +84,7 @@ async def get_session_stats(
     )
     client_result = await db.execute(client_query)
     total_clients = client_result.scalar() or 0
-    
+
     return SessionStats(
         total_sessions=total,
         completed_sessions=completed,
@@ -250,13 +250,13 @@ async def get_session(
         select(TrainingSession).where(TrainingSession.id == session_id)
     )
     session = result.scalar_one_or_none()
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    
+
     return session
 
 
@@ -293,20 +293,20 @@ async def update_session(
         select(TrainingSession).where(TrainingSession.id == session_id)
     )
     session = result.scalar_one_or_none()
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    
+
     update_data = session_data.model_dump(exclude_unset=True)
     if "status" in update_data and update_data["status"]:
         update_data["status"] = update_data["status"].value
-    
+
     for field, value in update_data.items():
         setattr(session, field, value)
-    
+
     await db.flush()
     await db.refresh(session)
     return session
@@ -322,13 +322,13 @@ async def delete_session(
         select(TrainingSession).where(TrainingSession.id == session_id)
     )
     session = result.scalar_one_or_none()
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    
+
     session.status = SessionStatus.CANCELLED.value
     await db.flush()
 
@@ -343,17 +343,17 @@ async def toggle_session_payment(
         select(TrainingSession).where(TrainingSession.id == session_id)
     )
     session = result.scalar_one_or_none()
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    
+
     # Toggle is_paid
     session.is_paid = not session.is_paid
     session.paid_at = datetime.utcnow() if session.is_paid else None
-    
+
     await db.flush()
     await db.refresh(session)
     return session
@@ -375,7 +375,7 @@ async def create_session_group(
     )
     db.add(session_group)
     await db.flush()
-    
+
     # Create individual sessions for each client
     for client_id in group_data.client_ids:
         session = TrainingSession(
@@ -389,9 +389,9 @@ async def create_session_group(
             status=SessionStatus.SCHEDULED.value,
         )
         db.add(session)
-    
+
     await db.flush()
-    
+
     # Eagerly load the sessions relationship to avoid greenlet error
     result = await db.execute(
         select(SessionGroup)
@@ -399,7 +399,7 @@ async def create_session_group(
         .where(SessionGroup.id == session_group.id)
     )
     session_group = result.scalar_one()
-    
+
     return session_group
 
 

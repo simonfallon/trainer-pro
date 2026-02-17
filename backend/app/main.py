@@ -2,11 +2,21 @@
 Trainer-Pro FastAPI Application
 """
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import trainers, apps, locations, clients, sessions, exercise_templates, session_exercises, exercise_sets
+from app.routers import (
+    apps,
+    clients,
+    exercise_sets,
+    exercise_templates,
+    locations,
+    session_exercises,
+    sessions,
+    trainers,
+)
 
 settings = get_settings()
 
@@ -45,6 +55,7 @@ app.include_router(session_exercises.router, tags=["session-exercises"])
 app.include_router(exercise_sets.router, prefix="/exercise-sets", tags=["exercise-sets"])
 
 from app.routers import auth
+
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 # Dev auth bypass (only active when DEV_AUTH_BYPASS=true)
@@ -54,11 +65,14 @@ if settings.dev_auth_bypass:
 
 # Import uploads router (lazy import to avoid circular dep if needed, or just import at top)
 from app.routers import uploads
+
 app.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
 
 # Mount static files
-from fastapi.staticfiles import StaticFiles
 import os
+
+from fastapi.staticfiles import StaticFiles
+
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

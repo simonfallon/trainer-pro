@@ -1,16 +1,16 @@
 """
 Exercise Templates API Router
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy import select, func, or_
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.exercise_template import ExerciseTemplate
 from app.schemas.exercise_template import (
     ExerciseTemplateCreate,
-    ExerciseTemplateUpdate,
     ExerciseTemplateResponse,
+    ExerciseTemplateUpdate,
 )
 
 router = APIRouter()
@@ -24,10 +24,10 @@ async def list_exercise_templates(
 ):
     """List all exercise templates for a trainer app."""
     query = select(ExerciseTemplate).where(ExerciseTemplate.trainer_app_id == trainer_app_id)
-    
+
     if discipline_type:
         query = query.where(ExerciseTemplate.discipline_type == discipline_type)
-    
+
     query = query.order_by(ExerciseTemplate.name)
     result = await db.execute(query)
     return result.scalars().all()
@@ -57,26 +57,26 @@ async def autocomplete_exercise_templates(
         query = query.order_by(ExerciseTemplate.name).limit(limit)
         result = await db.execute(query)
         return result.scalars().all()
-    
+
     # Build fuzzy matching query
     # Match using ILIKE for substring matching (handles partial words)
     search_pattern = f"%{q}%"
-    
+
     query = select(ExerciseTemplate).where(
         ExerciseTemplate.trainer_app_id == trainer_app_id,
         ExerciseTemplate.name.ilike(search_pattern)
     )
-    
+
     if discipline_type:
         query = query.where(ExerciseTemplate.discipline_type == discipline_type)
-    
+
     # Order by: exact prefix match first, then alphabetically
     # Use CASE to prioritize exact prefix matches
     query = query.order_by(
         func.lower(ExerciseTemplate.name).startswith(q.lower()).desc(),
         ExerciseTemplate.name
     ).limit(limit)
-    
+
     result = await db.execute(query)
     return result.scalars().all()
 
@@ -91,13 +91,13 @@ async def get_exercise_template(
         select(ExerciseTemplate).where(ExerciseTemplate.id == template_id)
     )
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise template not found",
         )
-    
+
     return template
 
 
@@ -130,17 +130,17 @@ async def update_exercise_template(
         select(ExerciseTemplate).where(ExerciseTemplate.id == template_id)
     )
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise template not found",
         )
-    
+
     update_data = template_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(template, field, value)
-    
+
     await db.flush()
     await db.refresh(template)
     return template
@@ -156,12 +156,12 @@ async def delete_exercise_template(
         select(ExerciseTemplate).where(ExerciseTemplate.id == template_id)
     )
     template = result.scalar_one_or_none()
-    
+
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise template not found",
         )
-    
+
     await db.delete(template)
     await db.flush()

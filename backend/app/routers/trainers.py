@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.trainer import Trainer
-from app.schemas.trainer import TrainerCreate, TrainerUpdate, TrainerResponse
+from app.schemas.trainer import TrainerCreate, TrainerResponse, TrainerUpdate
 
 router = APIRouter()
 
@@ -20,13 +20,13 @@ async def get_trainer(
     """Get a trainer by ID."""
     result = await db.execute(select(Trainer).where(Trainer.id == trainer_id))
     trainer = result.scalar_one_or_none()
-    
+
     if not trainer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Trainer not found",
         )
-    
+
     return trainer
 
 
@@ -57,17 +57,17 @@ async def update_trainer(
     """Update a trainer."""
     result = await db.execute(select(Trainer).where(Trainer.id == trainer_id))
     trainer = result.scalar_one_or_none()
-    
+
     if not trainer:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Trainer not found",
         )
-    
+
     update_data = trainer_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(trainer, field, value)
-    
+
     await db.flush()
     await db.refresh(trainer)
     return trainer

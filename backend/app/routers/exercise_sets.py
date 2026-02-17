@@ -8,16 +8,15 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.exercise_set import ExerciseSet
-from app.models.session_exercise import SessionExercise
 from app.models.exercise_template import ExerciseTemplate
 from app.models.session import TrainingSession
+from app.models.session_exercise import SessionExercise
 from app.models.session_group import SessionGroup
 from app.schemas.exercise_set import (
     ExerciseSetCreate,
-    ExerciseSetUpdate,
     ExerciseSetResponse,
+    ExerciseSetUpdate,
     ExerciseSetUpdateExercises,
-    ExerciseInSetUpdate,
 )
 from app.schemas.session_exercise import SessionExerciseResponse
 
@@ -39,7 +38,7 @@ async def list_exercise_sets_for_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Training session not found",
         )
-    
+
     query = (
         select(ExerciseSet)
         .options(selectinload(ExerciseSet.exercises))
@@ -65,7 +64,7 @@ async def list_exercise_sets_for_group(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session group not found",
         )
-    
+
     query = (
         select(ExerciseSet)
         .options(selectinload(ExerciseSet.exercises))
@@ -92,7 +91,7 @@ async def create_exercise_set_for_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Training session not found",
         )
-    
+
     # Get highest order_index for this session
     max_order_result = await db.execute(
         select(ExerciseSet.order_index)
@@ -102,7 +101,7 @@ async def create_exercise_set_for_session(
     )
     max_order = max_order_result.scalar_one_or_none()
     next_order = (max_order + 1) if max_order is not None else 0
-    
+
     # Create exercise set
     exercise_set = ExerciseSet(
         session_id=session_id,
@@ -113,7 +112,7 @@ async def create_exercise_set_for_session(
     )
     db.add(exercise_set)
     await db.flush()
-    
+
     # Create exercises within the set
     for exercise_data in set_data.exercises:
         # Increment template usage count if using a template
@@ -124,7 +123,7 @@ async def create_exercise_set_for_session(
             template = template_result.scalar_one_or_none()
             if template:
                 template.usage_count += 1
-        
+
         exercise = SessionExercise(
             session_id=session_id,
             session_group_id=None,
@@ -135,7 +134,7 @@ async def create_exercise_set_for_session(
             order_index=exercise_data.order_index,
         )
         db.add(exercise)
-    
+
     await db.flush()
     await db.refresh(exercise_set, ["exercises"])
     return exercise_set
@@ -157,7 +156,7 @@ async def create_exercise_set_for_group(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session group not found",
         )
-    
+
     # Get highest order_index for this group
     max_order_result = await db.execute(
         select(ExerciseSet.order_index)
@@ -167,7 +166,7 @@ async def create_exercise_set_for_group(
     )
     max_order = max_order_result.scalar_one_or_none()
     next_order = (max_order + 1) if max_order is not None else 0
-    
+
     # Create exercise set
     exercise_set = ExerciseSet(
         session_id=None,
@@ -178,7 +177,7 @@ async def create_exercise_set_for_group(
     )
     db.add(exercise_set)
     await db.flush()
-    
+
     # Create exercises within the set
     for exercise_data in set_data.exercises:
         # Increment template usage count if using a template
@@ -189,7 +188,7 @@ async def create_exercise_set_for_group(
             template = template_result.scalar_one_or_none()
             if template:
                 template.usage_count += 1
-        
+
         exercise = SessionExercise(
             session_id=None,
             session_group_id=group_id,
@@ -200,7 +199,7 @@ async def create_exercise_set_for_group(
             order_index=exercise_data.order_index,
         )
         db.add(exercise)
-    
+
     await db.flush()
     await db.refresh(exercise_set, ["exercises"])
     return exercise_set
@@ -218,13 +217,13 @@ async def get_exercise_set(
         .where(ExerciseSet.id == set_id)
     )
     exercise_set = result.scalar_one_or_none()
-    
+
     if not exercise_set:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise set not found",
         )
-    
+
     return exercise_set
 
 
@@ -239,17 +238,17 @@ async def update_exercise_set(
         select(ExerciseSet).where(ExerciseSet.id == set_id)
     )
     exercise_set = result.scalar_one_or_none()
-    
+
     if not exercise_set:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise set not found",
         )
-    
+
     update_data = set_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(exercise_set, field, value)
-    
+
     await db.flush()
     await db.refresh(exercise_set, ["exercises"])
     return exercise_set
@@ -266,22 +265,22 @@ async def update_exercise_set_exercises(
         select(ExerciseSet).where(ExerciseSet.id == set_id)
     )
     exercise_set = result.scalar_one_or_none()
-    
+
     if not exercise_set:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise set not found",
         )
-    
+
     # Get existing exercise IDs in this set
     existing_result = await db.execute(
         select(SessionExercise.id).where(SessionExercise.exercise_set_id == set_id)
     )
     existing_ids = set(existing_result.scalars().all())
-    
+
     # Track which exercises we're keeping/updating
     updated_ids = set()
-    
+
     # Process exercises from the update request
     for exercise_data in update_data.exercises:
         if exercise_data.id and exercise_data.id in existing_ids:
@@ -290,12 +289,12 @@ async def update_exercise_set_exercises(
                 select(SessionExercise).where(SessionExercise.id == exercise_data.id)
             )
             exercise = exercise_result.scalar_one()
-            
+
             update_dict = exercise_data.model_dump(exclude_unset=True, exclude={'id'})
             for field, value in update_dict.items():
                 if value is not None:
                     setattr(exercise, field, value)
-            
+
             updated_ids.add(exercise_data.id)
         else:
             # Create new exercise
@@ -307,7 +306,7 @@ async def update_exercise_set_exercises(
                 template = template_result.scalar_one_or_none()
                 if template:
                     template.usage_count += 1
-            
+
             exercise = SessionExercise(
                 session_id=exercise_set.session_id,
                 session_group_id=exercise_set.session_group_id,
@@ -318,7 +317,7 @@ async def update_exercise_set_exercises(
                 order_index=exercise_data.order_index or 0,
             )
             db.add(exercise)
-    
+
     # Delete exercises not in the update list
     ids_to_delete = existing_ids - updated_ids
     if ids_to_delete:
@@ -329,7 +328,7 @@ async def update_exercise_set_exercises(
             exercise = exercise_result.scalar_one_or_none()
             if exercise:
                 await db.delete(exercise)
-    
+
     await db.flush()
     await db.refresh(exercise_set, ["exercises"])
     return exercise_set
@@ -345,13 +344,13 @@ async def delete_exercise_set(
         select(ExerciseSet).where(ExerciseSet.id == set_id)
     )
     exercise_set = result.scalar_one_or_none()
-    
+
     if not exercise_set:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise set not found",
         )
-    
+
     await db.delete(exercise_set)
     await db.flush()
 
@@ -372,7 +371,7 @@ async def reorder_exercise_set_exercises(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exercise set not found",
         )
-    
+
     # Update order_index for each exercise
     for index, exercise_id in enumerate(exercise_ids):
         result = await db.execute(
@@ -384,9 +383,9 @@ async def reorder_exercise_set_exercises(
         exercise = result.scalar_one_or_none()
         if exercise:
             exercise.order_index = index
-    
+
     await db.flush()
-    
+
     # Return updated list
     query = (
         select(SessionExercise)

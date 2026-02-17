@@ -1,12 +1,12 @@
 """
 Pydantic Schemas Package
 """
-from app.schemas.trainer import TrainerCreate, TrainerUpdate, TrainerResponse
-from app.schemas.app import AppCreate, AppUpdate, AppResponse
-from app.schemas.location import LocationCreate, LocationUpdate, LocationResponse
-from app.schemas.client import ClientCreate, ClientUpdate, ClientResponse
-from app.schemas.session import SessionCreate, SessionUpdate, SessionResponse, SessionStats
-from app.schemas.payment import PaymentCreate, PaymentResponse, PaymentBalanceResponse
+from app.schemas.app import AppCreate, AppResponse, AppUpdate
+from app.schemas.client import ClientCreate, ClientResponse, ClientUpdate
+from app.schemas.location import LocationCreate, LocationResponse, LocationUpdate
+from app.schemas.payment import PaymentBalanceResponse, PaymentCreate, PaymentResponse
+from app.schemas.session import SessionCreate, SessionResponse, SessionStats, SessionUpdate
+from app.schemas.trainer import TrainerCreate, TrainerResponse, TrainerUpdate
 
 __all__ = [
     "TrainerCreate", "TrainerUpdate", "TrainerResponse",

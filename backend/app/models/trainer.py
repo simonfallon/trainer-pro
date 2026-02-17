@@ -2,7 +2,8 @@
 Trainer Model
 """
 from datetime import datetime
-from sqlalchemy import String, DateTime, Integer
+
+from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -10,9 +11,9 @@ from app.database import Base
 
 class Trainer(Base):
     """Trainer entity - the main user of the platform."""
-    
+
     __tablename__ = "trainers"
-    
+
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
@@ -27,7 +28,7 @@ class Trainer(Base):
     token_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
     discipline_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
@@ -37,7 +38,7 @@ class Trainer(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
-    
+
     # Relationships
     apps: Mapped[list["TrainerApp"]] = relationship(
         "TrainerApp",
@@ -69,15 +70,15 @@ class Trainer(Base):
         back_populates="trainer",
         cascade="all, delete-orphan",
     )
-    
+
     def __repr__(self) -> str:
         return f"<Trainer {self.name} ({self.id})>"
 
 
 # Import for type hints - avoid circular import
 from app.models.app import TrainerApp
-from app.models.location import Location
 from app.models.client import Client
+from app.models.location import Location
+from app.models.payment import Payment
 from app.models.session import TrainingSession
 from app.models.session_group import SessionGroup
-from app.models.payment import Payment

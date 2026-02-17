@@ -21,7 +21,7 @@ async def test_create_exercise_set_for_session(client: AsyncClient, test_session
     template1_resp = await client.post("/exercise-templates", json=template1_data)
     assert template1_resp.status_code == 201
     template1 = template1_resp.json()
-    
+
     # Create exercise set with exercises
     set_data = {
         "name": "Circuito de Piernas",
@@ -39,17 +39,17 @@ async def test_create_exercise_set_for_session(client: AsyncClient, test_session
             },
         ],
     }
-    
+
     response = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
     assert response.status_code == 201
-    
+
     exercise_set = response.json()
     assert exercise_set["name"] == "Circuito de Piernas"
     assert exercise_set["series"] == 3
     assert exercise_set["session_id"] == test_session.id
     assert exercise_set["session_group_id"] is None
     assert len(exercise_set["exercises"]) == 2
-    
+
     # Verify exercises are in correct order
     assert exercise_set["exercises"][0]["exercise_template_id"] == template1["id"]
     assert exercise_set["exercises"][0]["data"]["repeticiones"] == 10
@@ -70,10 +70,10 @@ async def test_create_exercise_set_for_group(client: AsyncClient, test_session_g
             },
         ],
     }
-    
+
     response = await client.post(f"/exercise-sets/session-groups/{test_session_group.id}", json=set_data)
     assert response.status_code == 201
-    
+
     exercise_set = response.json()
     assert exercise_set["name"] == "Circuito Grupal"
     assert exercise_set["series"] == 4
@@ -99,11 +99,11 @@ async def test_list_exercise_sets_for_session(client: AsyncClient, test_session,
         }
         resp = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
         assert resp.status_code == 201
-    
+
     # List all sets for the session
     response = await client.get(f"/exercise-sets/sessions/{test_session.id}/sets")
     assert response.status_code == 200
-    
+
     sets = response.json()
     assert len(sets) == 2
     assert sets[0]["name"] == "Circuito 1"
@@ -128,11 +128,11 @@ async def test_get_exercise_set(client: AsyncClient, test_session):
     create_resp = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
     assert create_resp.status_code == 201
     set_id = create_resp.json()["id"]
-    
+
     # Get the set
     response = await client.get(f"/exercise-sets/{set_id}")
     assert response.status_code == 200
-    
+
     exercise_set = response.json()
     assert exercise_set["id"] == set_id
     assert exercise_set["name"] == "Test Set"
@@ -150,7 +150,7 @@ async def test_update_exercise_set_metadata(client: AsyncClient, test_session):
     }
     create_resp = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
     set_id = create_resp.json()["id"]
-    
+
     # Update metadata
     update_data = {
         "name": "Updated Name",
@@ -158,7 +158,7 @@ async def test_update_exercise_set_metadata(client: AsyncClient, test_session):
     }
     response = await client.put(f"/exercise-sets/{set_id}", json=update_data)
     assert response.status_code == 200
-    
+
     updated_set = response.json()
     assert updated_set["name"] == "Updated Name"
     assert updated_set["series"] == 5
@@ -181,11 +181,11 @@ async def test_delete_exercise_set(client: AsyncClient, test_session):
     }
     create_resp = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
     set_id = create_resp.json()["id"]
-    
+
     # Delete the set
     response = await client.delete(f"/exercise-sets/{set_id}")
     assert response.status_code == 204
-    
+
     # Verify it's gone
     get_resp = await client.get(f"/exercise-sets/{set_id}")
     assert get_resp.status_code == 404
@@ -207,15 +207,15 @@ async def test_reorder_exercises_in_set(client: AsyncClient, test_session):
     create_resp = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
     exercise_set = create_resp.json()
     set_id = exercise_set["id"]
-    
+
     # Get exercise IDs
     exercise_ids = [ex["id"] for ex in exercise_set["exercises"]]
-    
+
     # Reorder: C, A, B
     new_order = [exercise_ids[2], exercise_ids[0], exercise_ids[1]]
     response = await client.put(f"/exercise-sets/{set_id}/reorder", json=new_order)
     assert response.status_code == 200
-    
+
     reordered = response.json()
     assert len(reordered) == 3
     assert reordered[0]["custom_name"] == "Exercise C"
@@ -228,7 +228,7 @@ async def test_exercise_set_xor_constraint(client: AsyncClient, test_session, te
     """Test that exercise sets enforce session XOR session_group constraint."""
     # This is enforced at the database level via CHECK constraint
     # The API should only allow creating sets via the correct endpoints
-    
+
     # Create set for session - should work
     set_data = {
         "name": "Session Set",
@@ -239,7 +239,7 @@ async def test_exercise_set_xor_constraint(client: AsyncClient, test_session, te
     assert resp1.status_code == 201
     assert resp1.json()["session_id"] == test_session.id
     assert resp1.json()["session_group_id"] is None
-    
+
     # Create set for group - should work
     resp2 = await client.post(f"/exercise-sets/session-groups/{test_session_group.id}", json=set_data)
     assert resp2.status_code == 201
@@ -260,7 +260,7 @@ async def test_template_usage_count_increment(client: AsyncClient, test_session,
     template_resp = await client.post("/exercise-templates", json=template_data)
     template = template_resp.json()
     assert template["usage_count"] == 0
-    
+
     # Create set using the template
     set_data = {
         "name": "Usage Test",
@@ -274,7 +274,7 @@ async def test_template_usage_count_increment(client: AsyncClient, test_session,
         ],
     }
     await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
-    
+
     # Check template usage count
     template_get_resp = await client.get(f"/exercise-templates/{template['id']}")
     updated_template = template_get_resp.json()
@@ -297,16 +297,16 @@ async def test_exercise_set_cascade_delete(client: AsyncClient, test_session):
     exercise_set = create_resp.json()
     set_id = exercise_set["id"]
     exercise_ids = [ex["id"] for ex in exercise_set["exercises"]]
-    
+
     # Delete the set
     await client.delete(f"/exercise-sets/{set_id}")
-    
+
     # Verify exercises are also deleted
     # (They should not appear in session exercises list)
     session_exercises_resp = await client.get(f"/sessions/{test_session.id}/exercises")
     assert session_exercises_resp.status_code == 200
     session_exercises = session_exercises_resp.json()
-    
+
     for exercise_id in exercise_ids:
         assert not any(ex["id"] == exercise_id for ex in session_exercises)
 
@@ -335,11 +335,11 @@ async def test_order_index_auto_increment(client: AsyncClient, test_session):
         }
         resp = await client.post(f"/exercise-sets/sessions/{test_session.id}", json=set_data)
         assert resp.status_code == 201
-    
+
     # List and verify order
     list_resp = await client.get(f"/exercise-sets/sessions/{test_session.id}/sets")
     sets = list_resp.json()
-    
+
     assert len(sets) == 3
     for i, exercise_set in enumerate(sets):
         assert exercise_set["order_index"] == i

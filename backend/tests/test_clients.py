@@ -1,16 +1,14 @@
 """
 Client API Integration Tests
 """
-import pytest
 from httpx import AsyncClient
-from datetime import datetime
 
-from app.models import Trainer, Client
+from app.models import Client, Trainer
 
 
 class TestClientEndpoints:
     """Test client CRUD and profile operations."""
-    
+
     async def test_create_client(self, client: AsyncClient, test_trainer: Trainer):
         """Test creating a new client with profile fields."""
         response = await client.post(
@@ -26,7 +24,7 @@ class TestClientEndpoints:
                 "weight_kg": 60.0,
             },
         )
-        
+
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "New Client"
@@ -35,22 +33,22 @@ class TestClientEndpoints:
         assert data["height_cm"] == 165
         assert data["weight_kg"] == 60.0
         assert data["age"] is not None  # Computed field
-    
+
     async def test_get_client(self, client: AsyncClient, test_client_record: Client):
         """Test retrieving a client by ID."""
         response = await client.get(f"/clients/{test_client_record.id}")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["id"] == test_client_record.id
         assert data["name"] == test_client_record.name
-    
+
     async def test_get_client_not_found(self, client: AsyncClient):
         """Test 404 for non-existent client."""
         response = await client.get("/clients/999999")
 
         assert response.status_code == 404
-    
+
     async def test_update_client_profile(self, client: AsyncClient, test_client_record: Client):
         """Test updating client profile fields."""
         response = await client.put(
@@ -60,12 +58,12 @@ class TestClientEndpoints:
                 "height_cm": 182,
             },
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["weight_kg"] == 80.0
         assert data["height_cm"] == 182
-    
+
     async def test_list_clients(self, client: AsyncClient, test_trainer: Trainer, test_client_record: Client):
         """Test listing clients for a trainer."""
         response = await client.get(
@@ -77,12 +75,12 @@ class TestClientEndpoints:
         data = response.json()
         assert isinstance(data, list)
         assert len(data) >= 1
-    
+
     async def test_delete_client_soft_delete(self, client: AsyncClient, test_client_record: Client, test_trainer: Trainer):
         """Test soft delete of a client."""
         response = await client.delete(f"/clients/{test_client_record.id}")
         assert response.status_code == 204
-        
+
         # Verify soft deleted - should not appear in list
         list_response = await client.get(
             "/clients",

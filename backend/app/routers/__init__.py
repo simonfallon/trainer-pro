@@ -2,16 +2,16 @@
 API Routers Package
 """
 from app.routers import (
-    trainers,
     apps,
-    locations,
-    clients,
-    sessions,
-    uploads,
     auth,
+    clients,
     dev_auth,
     exercise_templates,
+    locations,
     session_exercises,
+    sessions,
+    trainers,
+    uploads,
 )
 
 __all__ = [

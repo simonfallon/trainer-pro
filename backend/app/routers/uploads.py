@@ -1,7 +1,8 @@
-from pathlib import Path
-import uuid
 import shutil
-from fastapi import APIRouter, UploadFile, File, HTTPException
+import uuid
+from pathlib import Path
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
 router = APIRouter()
 
@@ -16,16 +17,16 @@ async def upload_image(file: UploadFile = File(...)):
     """
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
-    
+
     # Generate a unique filename
     file_extension = Path(file.filename).suffix
     unique_filename = f"{uuid.uuid4()}{file_extension}"
     file_path = UPLOAD_DIR / unique_filename
-    
+
     try:
         with file_path.open("wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
-        
+
     return {"url": f"/uploads/{unique_filename}"}

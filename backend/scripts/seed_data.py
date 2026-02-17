@@ -9,30 +9,30 @@ IMPORTANT: This is for DEVELOPMENT ONLY.
 """
 import asyncio
 import sys
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
 # Add parent directory to path to import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete
+
 from app.database import async_session_maker
-from app.models.trainer import Trainer
 from app.models.app import TrainerApp
-from app.models.location import Location
 from app.models.client import Client
+from app.models.exercise_template import ExerciseTemplate
+from app.models.location import Location
+from app.models.payment import Payment
 from app.models.session import TrainingSession
 from app.models.session_group import SessionGroup
-from app.models.payment import Payment
-from app.models.exercise_template import ExerciseTemplate
+from app.models.trainer import Trainer
 
 
 async def seed_data():
     """Seed test data (idempotent - safe to run multiple times)."""
     async with async_session_maker() as db:
         print("🌱 Starting data seeding...")
-        
+
         # Clean up all existing data
         print("  Cleaning up existing data...")
         await db.execute(delete(Payment))
@@ -44,16 +44,16 @@ async def seed_data():
         await db.execute(delete(TrainerApp))
         await db.execute(delete(Trainer))
         await db.flush()
-        
+
         # Base date: Today at 00:00:00
         now = datetime.now()
         today = datetime(now.year, now.month, now.day)
-        
+
         # ============================================================
         # BMX TRAINER DATASET
         # ============================================================
         print("\n📦 Creating BMX Trainer dataset...")
-        
+
         bmx_trainer = Trainer(
             name="BMX Trainer",
             email="bmx@test.com",
@@ -64,17 +64,17 @@ async def seed_data():
         db.add(bmx_trainer)
         await db.flush()
         print(f"  ✓ Created BMX trainer (ID: {bmx_trainer.id})")
-        
+
         bmx_app = TrainerApp(
             trainer_id=bmx_trainer.id,
             name="BMX Pro Training",
             theme_id="bmx",
             theme_config={
                 "colors": {
-                    "primary": "#ea580c",
-                    "secondary": "#dc2626",
-                    "background": "#ffffff",
-                    "text": "#1e293b"
+                    "primary": "#334155",
+                    "secondary": "#94a3b8",
+                    "background": "#f8fafc",
+                    "text": "#0f172a"
                 },
                 "fonts": {
                     "heading": "Inter",
@@ -85,7 +85,7 @@ async def seed_data():
         db.add(bmx_app)
         await db.flush()
         print(f"  ✓ Created BMX app (ID: {bmx_app.id})")
-        
+
         # BMX Locations
         bmx_track = Location(
             trainer_id=bmx_trainer.id,
@@ -101,8 +101,8 @@ async def seed_data():
         )
         db.add(bmx_track)
         await db.flush()
-        print(f"  ✓ Created BMX location")
-        
+        print("  ✓ Created BMX location")
+
         # BMX Clients
         bmx_clients = []
         for i, (name, phone) in enumerate([
@@ -120,7 +120,7 @@ async def seed_data():
             bmx_clients.append(client)
         await db.flush()
         print(f"  ✓ Created {len(bmx_clients)} BMX clients")
-        
+
         # BMX Exercise Templates
         bmx_templates = [
             {
@@ -149,7 +149,7 @@ async def seed_data():
                 }
             },
         ]
-        
+
         for template_data in bmx_templates:
             template = ExerciseTemplate(
                 trainer_app_id=bmx_app.id,
@@ -158,7 +158,7 @@ async def seed_data():
             db.add(template)
         await db.flush()
         print(f"  ✓ Created {len(bmx_templates)} BMX exercise templates")
-        
+
         # BMX Sessions
         bmx_sessions = [
             # Past completed sessions
@@ -190,7 +190,7 @@ async def seed_data():
                 "is_paid": False,
             },
         ]
-        
+
         for session_data in bmx_sessions:
             session = TrainingSession(
                 trainer_id=bmx_trainer.id,
@@ -199,12 +199,12 @@ async def seed_data():
             db.add(session)
         await db.flush()
         print(f"  ✓ Created {len(bmx_sessions)} BMX sessions")
-        
+
         # ============================================================
         # PHYSIO TRAINER DATASET
         # ============================================================
         print("\n📦 Creating Physio Trainer dataset...")
-        
+
         physio_trainer = Trainer(
             name="Physio Trainer",
             email="physio@test.com",
@@ -215,17 +215,17 @@ async def seed_data():
         db.add(physio_trainer)
         await db.flush()
         print(f"  ✓ Created Physio trainer (ID: {physio_trainer.id})")
-        
+
         physio_app = TrainerApp(
             trainer_id=physio_trainer.id,
             name="Fisioterapia Pro",
             theme_id="physio",
             theme_config={
                 "colors": {
-                    "primary": "#2563eb",
-                    "secondary": "#64748b",
-                    "background": "#ffffff",
-                    "text": "#1e293b"
+                    "primary": "#1e3a8a",
+                    "secondary": "#3b82f6",
+                    "background": "#f8fafc",
+                    "text": "#0f172a"
                 },
                 "fonts": {
                     "heading": "Inter",
@@ -236,7 +236,7 @@ async def seed_data():
         db.add(physio_app)
         await db.flush()
         print(f"  ✓ Created Physio app (ID: {physio_app.id})")
-        
+
         # Physio Locations
         physio_center = Location(
             trainer_id=physio_trainer.id,
@@ -250,7 +250,7 @@ async def seed_data():
             longitude=-75.5658,
         )
         db.add(physio_center)
-        
+
         home_location = Location(
             trainer_id=physio_trainer.id,
             name="Tierra Clara Apartamentos",
@@ -265,8 +265,8 @@ async def seed_data():
         )
         db.add(home_location)
         await db.flush()
-        print(f"  ✓ Created 2 Physio locations")
-        
+        print("  ✓ Created 2 Physio locations")
+
         # Physio Clients
         physio_clients = []
         for i, (name, phone, email) in enumerate([
@@ -285,7 +285,7 @@ async def seed_data():
             physio_clients.append(client)
         await db.flush()
         print(f"  ✓ Created {len(physio_clients)} Physio clients")
-        
+
         # Physio Exercise Templates
         physio_templates = [
             {
@@ -325,7 +325,7 @@ async def seed_data():
                 }
             },
         ]
-        
+
         for template_data in physio_templates:
             template = ExerciseTemplate(
                 trainer_app_id=physio_app.id,
@@ -334,7 +334,7 @@ async def seed_data():
             db.add(template)
         await db.flush()
         print(f"  ✓ Created {len(physio_templates)} Physio exercise templates")
-        
+
         # Physio Sessions
         physio_sessions = [
             # Past completed sessions
@@ -392,7 +392,7 @@ async def seed_data():
                 "is_paid": False,
             },
         ]
-        
+
         for session_data in physio_sessions:
             session = TrainingSession(
                 trainer_id=physio_trainer.id,
@@ -401,7 +401,7 @@ async def seed_data():
             db.add(session)
         await db.flush()
         print(f"  ✓ Created {len(physio_sessions)} Physio sessions")
-        
+
         # Physio Payments
         payment = Payment(
             trainer_id=physio_trainer.id,
@@ -413,8 +413,8 @@ async def seed_data():
         )
         db.add(payment)
         await db.flush()
-        print(f"  ✓ Created 1 Physio payment")
-        
+        print("  ✓ Created 1 Physio payment")
+
         # Reset sequences
         import sqlalchemy as sa
         for table in ['trainers', 'trainer_apps', 'locations', 'clients', 'exercise_templates', 'training_sessions', 'session_groups', 'payments']:
@@ -422,11 +422,11 @@ async def seed_data():
                 f"SELECT setval('{table}_id_seq', COALESCE((SELECT MAX(id) FROM {table}), 1))"
             ))
         print("\n  ✓ Sequences reset")
-        
+
         # Commit all changes
         await db.commit()
         print("\n✅ Data seeding complete!")
-        print(f"\n📊 Test Data Summary:")
+        print("\n📊 Test Data Summary:")
         print(f"   BMX Trainer ID: {bmx_trainer.id} (email: bmx@test.com)")
         print(f"   Physio Trainer ID: {physio_trainer.id} (email: physio@test.com)")
         print(f"   Total Clients: {len(bmx_clients) + len(physio_clients)}")

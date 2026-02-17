@@ -2,6 +2,7 @@
 Trainer Schemas
 """
 from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -21,7 +22,7 @@ class TrainerBase(BaseModel):
         settings = get_settings()
         if settings.dev_auth_bypass:
             return v
-        
+
         if not v.endswith("@gmail.com"):
             raise ValueError("Email must be a Google email (@gmail.com)")
         return v
@@ -44,13 +45,13 @@ class TrainerUpdate(BaseModel):
     def validate_google_email(cls, v: str | None) -> str | None:
         if v is None:
             return v
-        
+
         # Skip validation in dev mode to allow test emails
         from app.config import get_settings
         settings = get_settings()
         if settings.dev_auth_bypass:
             return v
-        
+
         if not v.endswith("@gmail.com"):
             raise ValueError("Email must be a Google email (@gmail.com)")
         return v
@@ -64,6 +65,6 @@ class TrainerResponse(TrainerBase):
     discipline_type: str
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True

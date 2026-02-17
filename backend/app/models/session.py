@@ -3,7 +3,8 @@ Training Session Model
 """
 from datetime import datetime
 from enum import Enum as PyEnum
-from sqlalchemy import String, DateTime, ForeignKey, Text, Integer, Boolean
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -19,9 +20,9 @@ class SessionStatus(str, PyEnum):
 
 class TrainingSession(Base):
     """Training Session entity - scheduled training appointments."""
-    
+
     __tablename__ = "training_sessions"
-    
+
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True,
@@ -47,7 +48,7 @@ class TrainingSession(Base):
         ForeignKey("session_groups.id", ondelete="CASCADE"),
         nullable=True,
     )
-    
+
     scheduled_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -67,17 +68,17 @@ class TrainingSession(Base):
         default=SessionStatus.SCHEDULED.value,
         nullable=False,
     )
-    
+
     # Payment tracking
     is_paid: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    
+
     # Session documentation (trainer's notes about the session)
     session_doc: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=datetime.utcnow,
@@ -87,7 +88,7 @@ class TrainingSession(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
-    
+
     # Relationships
     trainer: Mapped["Trainer"] = relationship(
         "Trainer",
@@ -117,15 +118,15 @@ class TrainingSession(Base):
         cascade="all, delete-orphan",
         order_by="ExerciseSet.order_index",
     )
-    
+
     def __repr__(self) -> str:
         return f"<TrainingSession {self.scheduled_at} ({self.status})>"
 
 
 # Import for type hints
-from app.models.trainer import Trainer
 from app.models.client import Client
-from app.models.location import Location
-from app.models.session_group import SessionGroup
-from app.models.session_exercise import SessionExercise
 from app.models.exercise_set import ExerciseSet
+from app.models.location import Location
+from app.models.session_exercise import SessionExercise
+from app.models.session_group import SessionGroup
+from app.models.trainer import Trainer

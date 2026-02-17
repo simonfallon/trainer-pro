@@ -2,6 +2,7 @@
 Exercise Set Schemas
 """
 from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from app.schemas.session_exercise import SessionExerciseResponse
@@ -57,6 +58,6 @@ class ExerciseSetResponse(ExerciseSetBase):
     exercises: list[SessionExerciseResponse]
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True

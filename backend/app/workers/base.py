@@ -11,9 +11,9 @@ This provides a clean abstraction for:
 - Integration workflows (calendar sync, WhatsApp, etc.)
 """
 from abc import ABC, abstractmethod
-from typing import Any, Callable
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class WorkerStatus(str, Enum):
@@ -48,10 +48,10 @@ class BaseWorker(ABC):
                 # Sync calendar logic here
                 return JobResult(status=WorkerStatus.COMPLETED, data={...})
     """
-    
+
     name: str = "base_worker"
     description: str = "Base worker description"
-    
+
     @abstractmethod
     async def execute(self, payload: dict[str, Any]) -> JobResult:
         """
@@ -64,11 +64,11 @@ class BaseWorker(ABC):
             JobResult with status and optional data/error
         """
         pass
-    
+
     async def on_success(self, result: JobResult) -> None:
         """Hook called after successful execution."""
         pass
-    
+
     async def on_failure(self, result: JobResult) -> None:
         """Hook called after failed execution."""
         pass
@@ -81,41 +81,41 @@ class WorkerRegistry:
     Provides a central location for registering, discovering,
     and dispatching work to background workers.
     """
-    
+
     def __init__(self):
         self._workers: dict[str, BaseWorker] = {}
         self._event_handlers: dict[str, list[str]] = {}
-    
+
     def register(self, worker: BaseWorker) -> None:
         """Register a worker instance."""
         self._workers[worker.name] = worker
-    
+
     def unregister(self, worker_name: str) -> None:
         """Unregister a worker by name."""
         if worker_name in self._workers:
             del self._workers[worker_name]
-    
+
     def get(self, worker_name: str) -> BaseWorker | None:
         """Get a worker by name."""
         return self._workers.get(worker_name)
-    
+
     def list_workers(self) -> list[str]:
         """List all registered worker names."""
         return list(self._workers.keys())
-    
+
     def subscribe(self, event: str, worker_name: str) -> None:
         """Subscribe a worker to an event."""
         if event not in self._event_handlers:
             self._event_handlers[event] = []
         if worker_name not in self._event_handlers[event]:
             self._event_handlers[event].append(worker_name)
-    
+
     def unsubscribe(self, event: str, worker_name: str) -> None:
         """Unsubscribe a worker from an event."""
         if event in self._event_handlers:
             if worker_name in self._event_handlers[event]:
                 self._event_handlers[event].remove(worker_name)
-    
+
     async def dispatch(self, event: str, payload: dict[str, Any]) -> list[JobResult]:
         """
         Dispatch an event to all subscribed workers.
@@ -132,7 +132,7 @@ class WorkerRegistry:
         """
         results = []
         worker_names = self._event_handlers.get(event, [])
-        
+
         for worker_name in worker_names:
             worker = self.get(worker_name)
             if worker:
@@ -150,9 +150,9 @@ class WorkerRegistry:
                     )
                     await worker.on_failure(result)
                     results.append(result)
-        
+
         return results
-    
+
     async def execute_worker(
         self,
         worker_name: str,
@@ -174,7 +174,7 @@ class WorkerRegistry:
         worker = self.get(worker_name)
         if not worker:
             raise ValueError(f"Worker '{worker_name}' not found")
-        
+
         try:
             result = await worker.execute(payload)
             if result.status == WorkerStatus.COMPLETED:
