@@ -12,76 +12,71 @@ Trainer-Pro is a multi-discipline trainer management platform for professional t
 
 ## Development Commands
 
+### Quick Start (Makefile)
+A root `Makefile` provides shortcuts for all common tasks:
+```bash
+make help             # List all available commands
+make install          # Install backend (Poetry) + frontend (npm) deps
+make db-up            # Start PostgreSQL container
+make migrate          # Run Alembic migrations
+make seed             # Seed test data
+make backend          # Start backend dev server (:8000)
+make frontend         # Start frontend dev server (:3000)
+make test-backend     # Run pytest
+make test-frontend    # Run vitest
+make lint             # Lint backend with ruff
+make format           # Format all code (ruff + prettier)
+```
+
 ### Database Setup
 ```bash
-# Start PostgreSQL with Docker
 docker-compose up -d postgres
-
-# Check database health
 docker exec trainer-pro-db pg_isready -U trainer -d trainer_pro
 ```
 
-### Backend (FastAPI)
+### Backend (FastAPI + Poetry)
 ```bash
 cd backend
-python -m venv venv
-# Use poetry for dependency management
-poetry install
+poetry install                          # Install dependencies (venv at .venv/)
+poetry run alembic upgrade head         # Run migrations
+poetry run alembic revision --autogenerate -m "description"  # New migration
+poetry run uvicorn app.main:app --reload --port 8000         # Dev server
 
-# Run database migrations
-poetry run alembic upgrade head
-
-# Create a new migration after model changes
-poetry run alembic revision --autogenerate -m "description"
-
-# Start development server
-poetry run uvicorn app.main:app --reload --port 8000
+# API docs: http://localhost:8000/docs (Swagger) | /redoc (ReDoc)
 ```
 
-### Frontend (Next.js)
+### Frontend (Next.js + npm)
 ```bash
 cd frontend
 npm install
-npm run dev     # Development server (http://localhost:3000)
-npm run build   # Production build
-npm run start   # Production server
-npm run lint    # Run ESLint
+npm run dev       # Dev server (http://localhost:3000)
+npm run build     # Production build
+npm run lint      # ESLint
+npm run format    # Prettier
 ```
 
 ### Testing
-
-**Backend Tests (pytest)**
 ```bash
-cd backend
+# Backend (pytest, requires PostgreSQL test DB)
+cd backend && poetry run pytest -v
+# Override test DB: TEST_DATABASE_URL=<url> poetry run pytest
 
-# Run all tests
-poetry run pytest
-
-# Run specific test file
-poetry run pytest tests/test_clients.py
-
-# Run with verbose output
-poetry run pytest -v
-
-# Run tests with coverage
-poetry run pytest --cov=app
-
-# Note: Tests require a PostgreSQL test database
-# Default: postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test
-# Override with: TEST_DATABASE_URL=<your-url> poetry run pytest
+# Frontend (Vitest)
+cd frontend && npm test
 ```
 
-**Frontend Tests (Vitest)**
+### Code Quality
 ```bash
+# Backend - ruff (linting + formatting)
+cd backend
+poetry run ruff check .          # Lint
+poetry run ruff check --fix .    # Lint + auto-fix
+poetry run ruff format .         # Format
+
+# Frontend - prettier
 cd frontend
-
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:agent
-
-# Note: Tests use custom TMPDIR to avoid permission issues
+npm run format         # Format all files
+npm run format:check   # Check formatting (CI)
 ```
 
 ## Architecture
@@ -194,7 +189,7 @@ Copy `frontend/.env.example` to `frontend/.env.local` and configure:
 ### File Uploads
 - Files stored in `backend/uploads/`
 - Static file serving at `/uploads`
-- Proxy configured in `next.config.js`
+- Proxy configured in `next.config.ts`
 
 ### API Router Structure
 Each router module (e.g., `trainers.py`, `clients.py`) follows this pattern:

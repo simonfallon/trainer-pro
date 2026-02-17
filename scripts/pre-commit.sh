@@ -1,13 +1,18 @@
 #!/bin/bash
 
-# Pre-commit hook to run backend and frontend tests based on changes
+# Pre-commit hook: lint (with auto-fix) + tests for changed services
 
 EXIT_CODE=0
 
 # Check if there are staged changes in backend
 if git diff --cached --name-only | grep -q "^backend/"; then
-    echo "Running backend tests..."
-    (cd backend && poetry run pytest)
+    echo "==> Backend: linting with ruff..."
+    (cd backend && poetry run ruff check --fix . && poetry run ruff format .)
+    # Re-stage any auto-fixed files
+    git diff --cached --name-only | grep "^backend/" | xargs git add
+
+    echo "==> Backend: running tests..."
+    (cd backend && poetry run pytest -q)
     if [ $? -ne 0 ]; then
         echo "Backend tests failed!"
         EXIT_CODE=1
@@ -15,12 +20,17 @@ if git diff --cached --name-only | grep -q "^backend/"; then
         echo "Backend tests passed."
     fi
 else
-    echo "No backend changes detected, skipping backend tests."
+    echo "No backend changes, skipping."
 fi
 
 # Check if there are staged changes in frontend
 if git diff --cached --name-only | grep -q "^frontend/"; then
-    echo "Running frontend tests..."
+    echo "==> Frontend: formatting with prettier..."
+    (cd frontend && npx prettier --write "src/**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null)
+    # Re-stage any auto-fixed files
+    git diff --cached --name-only | grep "^frontend/" | xargs git add
+
+    echo "==> Frontend: running tests..."
     (cd frontend && npm test)
     if [ $? -ne 0 ]; then
         echo "Frontend tests failed!"
@@ -29,8 +39,7 @@ if git diff --cached --name-only | grep -q "^frontend/"; then
         echo "Frontend tests passed."
     fi
 else
-    echo "No frontend changes detected, skipping frontend tests."
+    echo "No frontend changes, skipping."
 fi
 
-# Return the exit code
 exit $EXIT_CODE
