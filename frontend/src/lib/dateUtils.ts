@@ -1,17 +1,60 @@
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-
 // Constants
 export const COLOMBIA_TIMEZONE = "America/Bogota";
-export const COLOMBIA_OFFSET_MS = -5 * 60 * 60 * 1000; // -5 hours in ms
+
+/**
+ * Extracts hours and minutes from a date in Colombia timezone using Intl.
+ * Works correctly on any machine regardless of its local timezone.
+ */
+function getColombiaTimeParts(date: Date | string): { hours: number; minutes: number } {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: COLOMBIA_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const hours = parseInt(parts.find((p) => p.type === "hour")!.value) % 24; // "24" at midnight → 0
+  const minutes = parseInt(parts.find((p) => p.type === "minute")!.value);
+  return { hours, minutes };
+}
+
+/**
+ * Returns minutes from midnight in Colombia timezone.
+ * Use this for calendar grid positioning (1px per minute grid).
+ */
+export function toColombiaMinutes(date: Date | string): number {
+  const { hours, minutes } = getColombiaTimeParts(date);
+  return hours * 60 + minutes;
+}
+
+/**
+ * Formats a date as YYYY-MM-DD in Colombia timezone.
+ */
+export function toColombianDateString(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  // en-CA locale formats as YYYY-MM-DD natively
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: COLOMBIA_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+/**
+ * Formats a date as HH:mm in Colombia timezone.
+ */
+export function toColombianTimeString(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const { hours, minutes } = getColombiaTimeParts(d);
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
 
 /**
  * Formats an ISO date string for display in Colombian Spanish.
- * Uses Native Intl.DateTimeFormat for robust timezone handling.
  */
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
-
   return new Intl.DateTimeFormat("es-CO", {
     timeZone: COLOMBIA_TIMEZONE,
     day: "numeric",
@@ -24,7 +67,7 @@ export function formatDate(dateString: string): string {
 }
 
 /**
- * Formats an ISO date string to time only (e.g. "10:00 AM") in Colombian Spanish.
+ * Formats an ISO date string to time only (e.g. "10:00 a. m.") in Colombian Spanish.
  */
 export function formatColombianTime(dateString: string): string {
   const date = new Date(dateString);
@@ -37,53 +80,22 @@ export function formatColombianTime(dateString: string): string {
 }
 
 /**
- * Returns a "Lie" Date object where the UTC components match the Wall Clock time in Colombia.
- * Example: 15:00 Real UTC -> 10:00 "Lie" UTC (representing 10:00 Colombia).
- * USE ONLY with getUTC* methods.
- */
-export function toColombianDate(date: Date | string): Date {
-  const d = typeof date === "string" ? new Date(date) : date;
-  // Bogota is strict UTC-5 (No DST).
-  // 15:00 UTC (Real) + (-5h) = 10:00 (Wall Click).
-  // We want a date whose getUTCHours() = 10.
-  // So we take Real UTC timestamp, add offset (-5h).
-  // Resulting timestamp creates a date where UTC matches local.
-  return new Date(d.getTime() + COLOMBIA_OFFSET_MS);
-}
-
-/**
- * Formats a date object to YYYY-MM-DD string in Colombian timezone.
- */
-export function toColombianDateString(date: Date): string {
-  const lie = toColombianDate(date);
-  return lie.toISOString().split("T")[0];
-}
-
-/**
- * Formats a date object to HH:mm string in Colombian timezone.
- */
-export function toColombianTimeString(date: Date): string {
-  const lie = toColombianDate(date);
-  return lie.toISOString().split("T")[1].substring(0, 5);
-}
-
-/**
  * Combines date (YYYY-MM-DD) and time (HH:mm) strings in Colombian time
  * and returns a UTC ISO string for backend storage.
+ * Colombia is UTC-5 (no DST), so we add 5 hours to convert to UTC.
  */
 export function toUtcIsoString(dateStr: string, timeStr: string): string {
-  // We have 10:00 Colombia. We want 15:00 UTC.
-  // Construct "Lie" ISO: "2023-10-27T10:00:00.000Z"
+  // Treat the input as a UTC time (a "lie"), then add 5 hours to get real UTC.
+  // e.g. "10:00" Colombia → construct "T10:00:00Z" → add 5h → "T15:00:00Z" (UTC)
   const lieIso = `${dateStr}T${timeStr}:00.000Z`;
   const lieDate = new Date(lieIso);
-
-  // Reverse the offset: Subtract (-5h) = Add 5h.
-  // 10:00 + 5h = 15:00.
-  return new Date(lieDate.getTime() - COLOMBIA_OFFSET_MS).toISOString();
+  return new Date(lieDate.getTime() + 5 * 60 * 60 * 1000).toISOString();
 }
 
 /**
- * Interprets a local Date object's components as if they were in Colombian timezone.
+ * Interprets a local Date object's wall-clock components as Colombian time
+ * and returns a UTC ISO string. Used for drag-and-drop where the calendar
+ * creates local Date objects from grid pixel positions.
  */
 export function interpretLocalAsColombian(date: Date): string {
   const year = date.getFullYear();

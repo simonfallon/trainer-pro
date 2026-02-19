@@ -31,6 +31,7 @@ vi.mock("@/components/ThemeProvider", () => ({
 // useDashboardApp
 vi.mock("@/hooks/useDashboardApp", () => ({
   useDashboardApp: () => ({
+    app: { trainer_id: 1 },
     trainer: {
       id: 1,
       name: "Entrenador Test",

@@ -2,7 +2,7 @@
 Clients API Router
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -142,7 +142,7 @@ async def delete_client(
             detail="Client not found",
         )
 
-    client.deleted_at = datetime.utcnow()
+    client.deleted_at = datetime.now(UTC)
     await db.flush()
 
 
@@ -253,7 +253,7 @@ async def register_client_payment(
         trainer_id=client.trainer_id,
         sessions_paid=payment_data.sessions_paid,
         amount_cop=payment_data.amount_cop,
-        payment_date=payment_data.payment_date or datetime.utcnow(),
+        payment_date=payment_data.payment_date or datetime.now(UTC),
         notes=payment_data.notes,
     )
     db.add(payment)
@@ -274,7 +274,7 @@ async def register_client_payment(
     unpaid_result = await db.execute(unpaid_sessions_query)
     unpaid_sessions = unpaid_result.scalars().all()
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     for session in unpaid_sessions:
         session.is_paid = True
         session.paid_at = now

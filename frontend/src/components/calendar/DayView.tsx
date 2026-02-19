@@ -3,7 +3,7 @@
 import React from "react";
 import { format, isSameDay, isToday } from "date-fns";
 import { es } from "date-fns/locale";
-import { COLOMBIA_TIMEZONE, toColombianDate } from "@/lib/dateUtils";
+import { toColombianDateString, toColombiaMinutes } from "@/lib/dateUtils";
 import { TrainingSession, Client } from "@/types";
 import { EventItem } from "./EventItem";
 
@@ -33,8 +33,7 @@ export const DayView: React.FC<DayViewProps> = ({
   const dayStr = format(currentDate, "yyyy-MM-dd");
 
   const daySessions = sessions.filter((session) => {
-    const colDate = toColombianDate(session.scheduled_at);
-    const colStr = colDate.toISOString().split("T")[0];
+    const colStr = toColombianDateString(session.scheduled_at);
     return colStr === dayStr && session.status !== "cancelled";
   });
 
@@ -83,10 +82,10 @@ export const DayView: React.FC<DayViewProps> = ({
     }
   };
 
-  // Current time indicator calculation
+  // Current time indicator: use Colombia timezone so it's correct on any machine
   const now = new Date();
   const isTodayColumn = isSameDay(currentDate, now);
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const currentMinutes = toColombiaMinutes(now);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>

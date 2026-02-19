@@ -2,7 +2,7 @@
 Trainer Model
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -28,16 +28,16 @@ class Trainer(Base):
     google_access_token: Mapped[str | None] = mapped_column(String, nullable=True)
     token_expiry: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     logo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    discipline_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    discipline_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     # Relationships

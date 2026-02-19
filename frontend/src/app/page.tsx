@@ -23,6 +23,7 @@ export default function HomePage() {
     background: string;
     text: string;
   } | null>(null);
+  const [disciplineType, setDisciplineType] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [createdTrainerId, setCreatedTrainerId] = useState<number | null>(null);
@@ -57,6 +58,7 @@ export default function HomePage() {
       await trainersApi.update(createdTrainerId, {
         phone: phone.trim(),
         logo_url: logoUrl,
+        discipline_type: disciplineType,
       });
       setStep(3); // Move to app creation
     } catch (err) {
@@ -346,6 +348,23 @@ export default function HomePage() {
                   </small>
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label" htmlFor="disciplineType">
+                    Disciplina *
+                  </label>
+                  <select
+                    id="disciplineType"
+                    className="form-input"
+                    value={disciplineType}
+                    onChange={(e) => setDisciplineType(e.target.value)}
+                    required
+                  >
+                    <option value="">Selecciona tu disciplina</option>
+                    <option value="bmx">BMX</option>
+                    <option value="physio">Fisioterapia / Rehabilitación</option>
+                  </select>
+                </div>
+
                 <ImageUpload onImageSelected={setLogoFile} label="Logo de tu Marca (Opcional)" />
                 <small
                   style={{
@@ -364,7 +383,7 @@ export default function HomePage() {
                   type="submit"
                   className="btn btn-primary"
                   style={{ width: "100%" }}
-                  disabled={isSubmitting || !phone.trim()}
+                  disabled={isSubmitting || !phone.trim() || !disciplineType}
                 >
                   {isSubmitting ? "Guardando..." : "Continuar"}
                 </button>

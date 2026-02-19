@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import "./calendar.css";
 import { WeekView } from "./WeekView";
 import { DayView } from "./DayView";
+import { toColombiaMinutes } from "@/lib/dateUtils";
 import type { TrainingSession, Client } from "@/types";
 
 interface CalendarViewProps {
@@ -57,8 +58,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Auto-scroll to current time when component mounts or view changes
   useEffect(() => {
     if (gridRef.current) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes = toColombiaMinutes(new Date());
 
       // Each minute is 1px, so scroll to current time minus half viewport height
       // to center the current time in the view

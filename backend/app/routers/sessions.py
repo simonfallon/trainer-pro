@@ -2,7 +2,7 @@
 Sessions API Router
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
@@ -110,7 +110,7 @@ async def get_current_session(
     """Find session scheduled within tolerance (±minutes) of current time."""
     from datetime import timedelta
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     start_time = now - timedelta(minutes=tolerance_minutes)
     end_time = now + timedelta(minutes=tolerance_minutes)
 
@@ -136,7 +136,7 @@ async def start_active_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Start or create an active session."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     if data.session_id:
         # Start existing session
@@ -322,7 +322,7 @@ async def delete_session(
     session_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Cancel a session (soft cancel via status change)."""
+    """Cancel a session (soft delete)."""
     result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
     session = result.scalar_one_or_none()
 
@@ -353,7 +353,7 @@ async def toggle_session_payment(
 
     # Toggle is_paid
     session.is_paid = not session.is_paid
-    session.paid_at = datetime.utcnow() if session.is_paid else None
+    session.paid_at = datetime.now(UTC) if session.is_paid else None
 
     await db.flush()
     await db.refresh(session)

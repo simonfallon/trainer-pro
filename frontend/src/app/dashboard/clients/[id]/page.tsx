@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useRef } from "react";
 import useSWR, { mutate } from "swr";
-import { clientsApi, sessionsApi, uploadsApi } from "@/lib/api";
+import { clientsApi, sessionsApi, uploadsApi, locationsApi } from "@/lib/api";
 import { useDarkStyles } from "@/hooks/useDarkStyles";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
 import { formatDate } from "@/lib/dateUtils";
@@ -12,7 +12,7 @@ import { PaymentModal } from "@/components/PaymentModal";
 import { SessionDetailModal } from "@/components/SessionDetailModal";
 import { ClientLapTimesCard } from "@/components/ClientLapTimesCard";
 import { ClientExerciseHistoryCard } from "@/components/ClientExerciseHistoryCard";
-import type { Client, TrainingSession, PaymentBalance } from "@/types";
+import type { Client, TrainingSession, PaymentBalance, Location } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Page
@@ -25,7 +25,7 @@ export default function ClientDetailPage() {
   const clientId = Number(params.id);
   const appId = searchParams.get("app_id");
   const { darkStyles, theme } = useDarkStyles();
-  const { trainer } = useDashboardApp();
+  const { app, trainer } = useDashboardApp();
 
   // -----------------------------------------------------------------------
   // Data
@@ -43,6 +43,10 @@ export default function ClientDetailPage() {
 
   const { data: balance } = useSWR<PaymentBalance>(`/clients/${clientId}/payment-balance`, () =>
     clientsApi.getPaymentBalance(clientId)
+  );
+
+  const { data: locations } = useSWR<Location[]>(`/locations?trainer_id=${app.trainer_id}`, () =>
+    locationsApi.list(app.trainer_id)
   );
 
   // -----------------------------------------------------------------------
@@ -65,6 +69,69 @@ export default function ClientDetailPage() {
   const [error, setError] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [editSection, setEditSection] = useState<"contact" | "personal" | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    default_location_id: "",
+    birth_date: "",
+    gender: "",
+    height_cm: "",
+    weight_kg: "",
+    notes: "",
+  });
+
+  const openEdit = (section: "contact" | "personal") => {
+    setEditFormData({
+      name: client?.name ?? "",
+      phone: client?.phone ?? "",
+      email: client?.email ?? "",
+      default_location_id:
+        client?.default_location_id != null ? String(client.default_location_id) : "",
+      birth_date: client?.birth_date ?? "",
+      gender: client?.gender ?? "",
+      height_cm: client?.height_cm != null ? String(client.height_cm) : "",
+      weight_kg: client?.weight_kg != null ? String(client.weight_kg) : "",
+      notes: client?.notes ?? "",
+    });
+    setEditError("");
+    setEditSection(section);
+  };
+
+  const handleEditSave = async () => {
+    setEditSaving(true);
+    setEditError("");
+    try {
+      if (editSection === "contact") {
+        await clientsApi.update(clientId, {
+          name: editFormData.name,
+          phone: editFormData.phone,
+          email: editFormData.email || undefined,
+          default_location_id: editFormData.default_location_id
+            ? Number(editFormData.default_location_id)
+            : undefined,
+        });
+      } else {
+        await clientsApi.update(clientId, {
+          birth_date: editFormData.birth_date || undefined,
+          gender: editFormData.gender || undefined,
+          height_cm: editFormData.height_cm ? Number(editFormData.height_cm) : undefined,
+          weight_kg: editFormData.weight_kg ? Number(editFormData.weight_kg) : undefined,
+          notes: editFormData.notes,
+        });
+      }
+      mutate(`/clients/${clientId}`);
+      setEditSection(null);
+    } catch (err) {
+      setEditError("Error al guardar los cambios");
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const handleTogglePayment = async (sessionId: number) => {
     try {
@@ -326,16 +393,33 @@ export default function ClientDetailPage() {
                 padding: "1rem",
               }}
             >
-              <h3
+              <div
                 style={{
-                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                   marginBottom: "0.75rem",
-                  fontSize: "1rem",
-                  fontWeight: 600,
                 }}
               >
-                Información de Contacto
-              </h3>
+                <h3 style={{ color: "white", fontSize: "1rem", fontWeight: 600, margin: 0 }}>
+                  Información de Contacto
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => openEdit("contact")}
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: "0.75rem",
+                    padding: "0.25rem 0.6rem",
+                  }}
+                >
+                  Editar
+                </button>
+              </div>
               {(
                 [
                   { label: "Teléfono", value: client.phone },
@@ -374,16 +458,33 @@ export default function ClientDetailPage() {
                 padding: "1rem",
               }}
             >
-              <h3
+              <div
                 style={{
-                  color: "white",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                   marginBottom: "0.75rem",
-                  fontSize: "1rem",
-                  fontWeight: 600,
                 }}
               >
-                Información Personal
-              </h3>
+                <h3 style={{ color: "white", fontSize: "1rem", fontWeight: 600, margin: 0 }}>
+                  Información Personal
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => openEdit("personal")}
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    border: "none",
+                    borderRadius: "6px",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: "0.75rem",
+                    padding: "0.25rem 0.6rem",
+                  }}
+                >
+                  Editar
+                </button>
+              </div>
               {(
                 [
                   client.age != null && { label: "Edad", value: `${client.age} años` },
@@ -731,7 +832,163 @@ export default function ClientDetailPage() {
           onUpdate={() => {
             mutate(`/clients/${clientId}/sessions`);
           }}
+          onDelete={async () => {
+            await sessionsApi.delete(selectedSession.id);
+            mutate(`/clients/${clientId}/sessions`);
+            setShowSessionModal(false);
+            setSelectedSession(null);
+          }}
         />
+      )}
+
+      {editSection && (
+        <div className="modal-overlay" onClick={() => setEditSection(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                {editSection === "contact"
+                  ? "Editar Información de Contacto"
+                  : "Editar Información Personal"}
+              </h3>
+              <button className="modal-close" onClick={() => setEditSection(null)}>
+                ×
+              </button>
+            </div>
+            <div
+              className="modal-body"
+              style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+            >
+              {editSection === "contact" ? (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Nombre *</label>
+                    <input
+                      className="form-input"
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Teléfono *</label>
+                    <input
+                      className="form-input"
+                      value={editFormData.phone}
+                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input
+                      className="form-input"
+                      type="email"
+                      value={editFormData.email}
+                      onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Ubicación predeterminada</label>
+                    <select
+                      className="form-select"
+                      value={editFormData.default_location_id}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, default_location_id: e.target.value })
+                      }
+                    >
+                      <option value="">Sin ubicación</option>
+                      {locations?.map((loc) => (
+                        <option key={loc.id} value={loc.id}>
+                          {loc.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Fecha de nacimiento</label>
+                    <input
+                      className="form-input"
+                      type="date"
+                      value={editFormData.birth_date}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, birth_date: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Género</label>
+                    <select
+                      className="form-select"
+                      value={editFormData.gender}
+                      onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                    >
+                      <option value="">No especificado</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Femenino">Femenino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    <div className="form-group">
+                      <label className="form-label">Altura (cm)</label>
+                      <input
+                        className="form-input"
+                        type="number"
+                        value={editFormData.height_cm}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, height_cm: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Peso (kg)</label>
+                      <input
+                        className="form-input"
+                        type="number"
+                        step="0.1"
+                        value={editFormData.weight_kg}
+                        onChange={(e) =>
+                          setEditFormData({ ...editFormData, weight_kg: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Notas</label>
+                    <textarea
+                      className="form-textarea"
+                      value={editFormData.notes}
+                      onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+
+              {editError && <p style={{ color: "#dc3545", margin: 0 }}>{editError}</p>}
+
+              <div style={{ display: "flex", gap: "1rem", marginTop: "0.25rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setEditSection(null)}
+                  style={{ flex: 1 }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleEditSave}
+                  disabled={editSaving}
+                  style={{ flex: 1 }}
+                >
+                  {editSaving ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

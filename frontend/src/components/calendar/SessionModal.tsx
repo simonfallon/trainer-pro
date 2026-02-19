@@ -2,16 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { TrainingSession, Client, Location } from "@/types";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { SESSION_STATUS_LABELS } from "@/lib/labels";
 import {
   formatDate,
   toColombianDateString,
   toColombianTimeString,
   formatColombianTime,
-  toColombianDate, // Kept if needed, otherwise removed
-  COLOMBIA_TIMEZONE,
 } from "@/lib/dateUtils";
 
 interface SessionModalProps {
@@ -24,6 +20,7 @@ interface SessionModalProps {
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
   onStatusChange: (sessionId: number, status: string) => Promise<void>;
+  onDelete: (sessionId: number) => Promise<void>;
 }
 
 export const SessionModal: React.FC<SessionModalProps> = ({
@@ -36,6 +33,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
   onClose,
   onSave,
   onStatusChange,
+  onDelete,
 }) => {
   const [mode, setMode] = useState<"create" | "view" | "edit">(initialMode);
   const [formData, setFormData] = useState({
@@ -105,6 +103,17 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     }
   };
 
+  const handleDelete = async () => {
+    if (!session) return;
+    if (!window.confirm("¿Eliminar esta sesión? Esta acción no se puede deshacer.")) return;
+    try {
+      await onDelete(session.id);
+      onClose();
+    } catch (err) {
+      setError("Error al eliminar la sesión");
+    }
+  };
+
   const handleClientToggle = (clientId: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -120,9 +129,6 @@ export const SessionModal: React.FC<SessionModalProps> = ({
       : formData.client_ids.length === 1
         ? clients.find((c) => c.id === formData.client_ids[0])?.name || "Cliente"
         : `${formData.client_ids.length} clientes seleccionados`;
-
-  const clientName =
-    clients.find((c) => String(c.id) === formData.client_ids[0]?.toString())?.name || "Cliente";
 
   if (mode === "view" && session) {
     return (
@@ -171,9 +177,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                 <label className="form-label" style={{ fontSize: "0.75rem" }}>
                   Hora
                 </label>
-                <p>
-                  <p>{formatColombianTime(session.scheduled_at)}</p>
-                </p>
+                <p>{formatColombianTime(session.scheduled_at)}</p>
               </div>
             </div>
             <div>
@@ -220,13 +224,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
             >
               {session.status === "scheduled" ? (
                 <>
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setMode("create")} // Switch to edit mode (logic handled in useEffect with 'edit' check logic but let's explicity say 'edit' in state?
-                    // Wait, I used 'edit' in useEffect but declared 'create' | 'view'.
-                    // Let's cheat and cast or just add 'edit' to props type?
-                    // I'll just change local state to 'edit' which works.
-                  >
+                  <button className="btn btn-secondary" onClick={() => setMode("create")}>
                     Editar
                   </button>
                   <button
@@ -247,6 +245,18 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                   Sesión {SESSION_STATUS_LABELS[session.status] || session.status}
                 </div>
               )}
+              <button
+                className="btn"
+                style={{
+                  backgroundColor: "transparent",
+                  color: "#dc3545",
+                  borderColor: "#dc3545",
+                  marginLeft: "auto",
+                }}
+                onClick={handleDelete}
+              >
+                Eliminar
+              </button>
             </div>
           </div>
         </div>

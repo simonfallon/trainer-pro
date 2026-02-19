@@ -69,7 +69,7 @@ class TrainerResponse(TrainerBase):
     id: int
     google_id: str | None = None
     logo_url: str | None = None
-    discipline_type: str
+    discipline_type: str | None = None
     created_at: datetime
     updated_at: datetime
 

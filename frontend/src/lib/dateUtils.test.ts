@@ -5,120 +5,88 @@ import {
   toColombianDateString,
   toColombianTimeString,
   interpretLocalAsColombian,
-  toColombianDate,
+  toColombiaMinutes,
   formatColombianTime,
-  COLOMBIA_TIMEZONE,
 } from "./dateUtils";
-import { format } from "date-fns";
 
 describe("dateUtils Timezone Handling", () => {
   // -------------------------------------------------------------------------
-  // 1. Verify formatDate (UTC -> Colombia Display)
+  // 1. toUtcIsoString: Colombia user input -> UTC ISO for backend storage
   // -------------------------------------------------------------------------
-  //   it("formatDate should format UTC time to Colombia time (UTC-5)", () => {
-  //     // 15:00 UTC is 10:00 Colombia
-  //     const utcString = "2023-10-27T15:00:00Z";
-  //     const formatted = formatDate(utcString);
-
-  //     // Check for "10:00" or similar structure depending on exact format string
-  //     // Format is "d 'de' MMMM, yyyy h:mm a" -> "27 de octubre, 2023 10:00 AM"
-  //     expect(formatted).toContain("10:00 AM");
-  //     expect(formatted).toContain("27 de octubre");
-  //   });
-
-  // it("formatDate should format UTC midnight to Colombia previous day 7 PM", () => {
-  //     // 00:00 UTC (Oct 28) is 19:00 Colombia (Oct 27)
-  //     const utcString = "2023-10-28T00:00:00Z";
-  //     const formatted = formatDate(utcString);
-
-  //     expect(formatted).toContain("7:00 PM");
-  //     expect(formatted).toContain("27 de octubre");
-  // });
-
-  // -------------------------------------------------------------------------
-  // 2. Verify toUtcIsoString (Colombia Inputs -> UTC ISO)
-  // -------------------------------------------------------------------------
-  it("toUtcIsoString should convert 10:00 Colombia input to 15:00 UTC", () => {
-    const dateStr = "2023-10-27";
-    const timeStr = "10:00";
-
-    const isoResult = toUtcIsoString(dateStr, timeStr);
-
-    // Expect 2023-10-27T15:00:00.000Z
-    expect(isoResult).toBe("2023-10-27T15:00:00.000Z");
+  it("toUtcIsoString should convert 10:00 Colombia to 15:00 UTC", () => {
+    expect(toUtcIsoString("2023-10-27", "10:00")).toBe("2023-10-27T15:00:00.000Z");
   });
 
-  it("toUtcIsoString should handle PM times correctly (e.g. 19:00 -> 00:00 next day UTC)", () => {
-    const dateStr = "2023-10-27";
-    const timeStr = "19:00";
-
-    const isoResult = toUtcIsoString(dateStr, timeStr);
-
-    // Expect 2023-10-28T00:00:00.000Z
-    expect(isoResult).toBe("2023-10-28T00:00:00.000Z");
+  it("toUtcIsoString should handle end-of-day: 19:00 Colombia -> 00:00 UTC next day", () => {
+    expect(toUtcIsoString("2023-10-27", "19:00")).toBe("2023-10-28T00:00:00.000Z");
   });
 
   // -------------------------------------------------------------------------
-  // 3. Verify interpretLocalAsColombian (Local Date Object -> UTC ISO)
+  // 2. interpretLocalAsColombian: drag-drop local Date -> UTC ISO
   // -------------------------------------------------------------------------
   it("interpretLocalAsColombian should treat local 10:00 as Colombia 10:00 (15:00 UTC)", () => {
-    // Create a local date for 10:00 regardless of where tests are running
-    const year = 2023,
-      month = 9,
-      day = 27,
-      hours = 10,
-      minutes = 0;
-    const localDate = new Date(year, month, day, hours, minutes);
-
-    // The function assumes this "10:00" meant "10:00 Colombia"
-    const resultIso = interpretLocalAsColombian(localDate);
-
-    expect(resultIso).toBe("2023-10-27T15:00:00.000Z");
+    const localDate = new Date(2023, 9, 27, 10, 0); // Oct 27 10:00 local
+    expect(interpretLocalAsColombian(localDate)).toBe("2023-10-27T15:00:00.000Z");
   });
 
   // -------------------------------------------------------------------------
-  // 4. Verify Extraction Helpers (UTC -> Colombia Components)
+  // 3. toColombiaMinutes: UTC date -> minutes from midnight in Colombia
   // -------------------------------------------------------------------------
-  it("toColombianDateString should return correct YYYY-MM-DD from UTC date", () => {
-    // 02:00 UTC Oct 28 is 21:00 Colombia Oct 27
-    const utcDate = new Date("2023-10-28T02:00:00Z");
-
-    const result = toColombianDateString(utcDate);
-    expect(result).toBe("2023-10-27");
-  });
-
-  it("toColombianTimeString should return correct HH:mm from UTC date", () => {
-    // 15:00 UTC is 10:00 Colombia
+  it("toColombiaMinutes should return 600 for 15:00 UTC (= 10:00 Colombia)", () => {
     const utcDate = new Date("2023-10-27T15:00:00Z");
+    expect(toColombiaMinutes(utcDate)).toBe(600); // 10 * 60
+  });
 
-    const result = toColombianTimeString(utcDate);
-    expect(result).toBe("10:00");
+  it("toColombiaMinutes should return 0 for 05:00 UTC (= 00:00 Colombia)", () => {
+    const utcDate = new Date("2023-10-27T05:00:00Z");
+    expect(toColombiaMinutes(utcDate)).toBe(0);
+  });
+
+  it("toColombiaMinutes accepts ISO strings", () => {
+    expect(toColombiaMinutes("2023-10-27T15:00:00Z")).toBe(600);
   });
 
   // -------------------------------------------------------------------------
-  // 5. Verify toColombianDate Helper
+  // 4. toColombianDateString: UTC date -> YYYY-MM-DD in Colombia
   // -------------------------------------------------------------------------
-  it("toColombianDate should return Date object with Colombia wall-clock time in UTC components", () => {
-    // 15:00 UTC is 10:00 Colombia
-    const utcDate = new Date("2023-10-27T15:00:00Z");
-    const colombianDate = toColombianDate(utcDate);
+  it("toColombianDateString should return Colombia date (02:00 UTC Oct 28 = Oct 27 Colombia)", () => {
+    const utcDate = new Date("2023-10-28T02:00:00Z"); // 21:00 Oct 27 Colombia
+    expect(toColombianDateString(utcDate)).toBe("2023-10-27");
+  });
 
-    // The returned date should have 10:00:00 as its UTC time
-    // because utcToZonedTime shifts the UTC timestamp to match wall clock
-    expect(colombianDate.toISOString()).toContain("T10:00:00.000Z");
+  it("toColombianDateString accepts ISO strings", () => {
+    expect(toColombianDateString("2023-10-27T15:00:00Z")).toBe("2023-10-27");
   });
 
   // -------------------------------------------------------------------------
-  // 6. Verify formatColombianTime Helper (Intl)
+  // 5. toColombianTimeString: UTC date -> HH:mm in Colombia
   // -------------------------------------------------------------------------
-  it("formatColombianTime should return HH:mm AM/PM in Colombia time", () => {
-    // 15:00 UTC is 10:00 AM Colombia
-    const utcString = "2023-10-27T15:00:00Z";
-    const formatted = formatColombianTime(utcString);
+  it("toColombianTimeString should return 10:00 for 15:00 UTC", () => {
+    expect(toColombianTimeString(new Date("2023-10-27T15:00:00Z"))).toBe("10:00");
+  });
 
-    // Expect "10:00 a. m." or "10:00 AM" depending on locale specifics
-    // es-CO usually uses "a. m."
+  it("toColombianTimeString accepts ISO strings", () => {
+    expect(toColombianTimeString("2023-10-27T15:00:00Z")).toBe("10:00");
+  });
+
+  // -------------------------------------------------------------------------
+  // 6. formatColombianTime: display format (Intl, es-CO)
+  // -------------------------------------------------------------------------
+  it("formatColombianTime should show 10:00 AM for 15:00 UTC", () => {
+    const formatted = formatColombianTime("2023-10-27T15:00:00Z");
+    // es-CO uses "a. m." notation; just verify the hour and meridiem are present
     expect(formatted).toMatch(/10:00/);
     expect(formatted).toMatch(/m/i);
+  });
+
+  // -------------------------------------------------------------------------
+  // 7. formatDate: full display (Intl, es-CO)
+  // -------------------------------------------------------------------------
+  it("formatDate should include the Colombia hour and date for 15:00 UTC", () => {
+    const formatted = formatDate("2023-10-27T15:00:00Z");
+    // 15:00 UTC = 10:00 AM Colombia on Oct 27
+    expect(formatted).toMatch(/10/); // hour
+    expect(formatted).toMatch(/27/); // day
+    expect(formatted).toMatch(/octubre/i); // month in Spanish
   });
 });

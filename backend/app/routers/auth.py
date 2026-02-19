@@ -4,7 +4,7 @@ Handles Google OAuth 2.0 flow.
 """
 
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -124,7 +124,7 @@ async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)
         trainer.google_access_token = access_token
         trainer.google_id = google_id  # Ensure this is set
         if expires_in:
-            trainer.token_expiry = datetime.utcnow() + timedelta(seconds=expires_in)
+            trainer.token_expiry = datetime.now(UTC) + timedelta(seconds=expires_in)
     else:
         # Create new trainer
         is_new_user = True
@@ -135,7 +135,7 @@ async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)
             google_id=google_id,
             google_refresh_token=refresh_token,
             google_access_token=access_token,
-            token_expiry=datetime.utcnow() + timedelta(seconds=expires_in) if expires_in else None,
+            token_expiry=datetime.now(UTC) + timedelta(seconds=expires_in) if expires_in else None,
         )
         db.add(trainer)
 

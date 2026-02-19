@@ -14,10 +14,12 @@ export function SessionDetailModal({
   session,
   onClose,
   onUpdate,
+  onDelete,
 }: {
   session: TrainingSession;
   onClose: () => void;
   onUpdate: () => void;
+  onDelete: () => Promise<void>;
 }) {
   const { darkStyles, theme } = useDarkStyles();
   const { trainer } = useDashboardApp();
@@ -58,6 +60,20 @@ export function SessionDetailModal({
       console.error("Error updating session:", err);
       setError("Error al actualizar la sesión");
     } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("¿Eliminar esta sesión? Esta acción no se puede deshacer.")) return;
+    setLoading(true);
+    setError("");
+    try {
+      await onDelete();
+      onClose();
+    } catch (err) {
+      console.error("Error deleting session:", err);
+      setError("Error al eliminar la sesión");
       setLoading(false);
     }
   };
@@ -490,6 +506,20 @@ export function SessionDetailModal({
         <div style={{ display: "flex", gap: "1rem" }}>
           <button type="button" className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
             Cerrar
+          </button>
+          <button
+            className="btn"
+            onClick={handleDelete}
+            disabled={loading}
+            style={{
+              flex: 1,
+              backgroundColor: "transparent",
+              color: "#dc3545",
+              borderColor: "#dc3545",
+              opacity: loading ? 0.5 : 1,
+            }}
+          >
+            Eliminar
           </button>
           <button
             className="btn btn-primary"

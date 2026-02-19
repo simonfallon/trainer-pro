@@ -94,6 +94,11 @@ export default function CalendarPage() {
     mutate(sessionsKey);
   };
 
+  const handleDeleteSession = async (sessionId: number) => {
+    await sessionsApi.delete(sessionId);
+    mutate(sessionsKey);
+  };
+
   const handleSessionUpdate = async (session: TrainingSession, newStart: Date) => {
     try {
       // Convert the local grid time (which represents the intended visual time)
@@ -158,6 +163,7 @@ export default function CalendarPage() {
           onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
           onSave={handleSaveSession}
           onStatusChange={handleStatusChange}
+          onDelete={handleDeleteSession}
         />
       )}
     </div>
