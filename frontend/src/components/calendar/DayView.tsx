@@ -3,6 +3,7 @@
 import React from "react";
 import { format, isSameDay, isToday } from "date-fns";
 import { es } from "date-fns/locale";
+import { COLOMBIA_TIMEZONE, toColombianDate } from "@/lib/dateUtils";
 import { TrainingSession, Client } from "@/types";
 import { EventItem } from "./EventItem";
 
@@ -10,6 +11,7 @@ interface DayViewProps {
   currentDate: Date;
   sessions: TrainingSession[];
   clients: Client[];
+  clientId?: number;
   onSessionClick: (session: TrainingSession) => void;
   onSlotClick: (date: Date) => void;
   onSessionUpdate: (session: TrainingSession, newStart: Date) => void;
@@ -19,6 +21,7 @@ export const DayView: React.FC<DayViewProps> = ({
   currentDate,
   sessions,
   clients,
+  clientId,
   onSessionClick,
   onSlotClick,
   onSessionUpdate,
@@ -27,10 +30,13 @@ export const DayView: React.FC<DayViewProps> = ({
   const hours = Array.from({ length: 24 }).map((_, i) => i);
 
   // Filter sessions
-  const daySessions = sessions.filter(
-    (session) =>
-      isSameDay(new Date(session.scheduled_at), currentDate) && session.status !== "cancelled"
-  );
+  const dayStr = format(currentDate, "yyyy-MM-dd");
+
+  const daySessions = sessions.filter((session) => {
+    const colDate = toColombianDate(session.scheduled_at);
+    const colStr = colDate.toISOString().split("T")[0];
+    return colStr === dayStr && session.status !== "cancelled";
+  });
 
   const handleDayClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -130,7 +136,8 @@ export const DayView: React.FC<DayViewProps> = ({
             const processedGroups = new Set<number>();
 
             daySessions.forEach((session) => {
-              if (session.session_group_id) {
+              if (session.session_group_id && !clientId) {
+                // Group sessions logic (only when NOT filtering by a single client)
                 if (processedGroups.has(session.session_group_id)) return;
 
                 processedGroups.add(session.session_group_id);
@@ -142,6 +149,7 @@ export const DayView: React.FC<DayViewProps> = ({
                   label: `${groupCount} clientes`,
                 });
               } else {
+                // Single session (or group session when filtering by client)
                 processedSessions.push({ session });
               }
             });

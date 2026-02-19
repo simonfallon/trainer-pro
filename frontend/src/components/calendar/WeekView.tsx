@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 import { startOfWeek, addDays, format, isSameDay, isToday } from "date-fns";
 import { es } from "date-fns/locale";
+import { COLOMBIA_TIMEZONE, toColombianDate } from "@/lib/dateUtils";
 import { TrainingSession, Client } from "@/types";
 import { EventItem } from "./EventItem";
 
@@ -10,6 +11,7 @@ interface WeekViewProps {
   currentDate: Date;
   sessions: TrainingSession[];
   clients: Client[];
+  clientId?: number;
   onSessionClick: (session: TrainingSession) => void;
   onSlotClick: (date: Date) => void;
   onSessionUpdate: (session: TrainingSession, newStart: Date) => void;
@@ -19,6 +21,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
   currentDate,
   sessions,
   clients,
+  clientId,
   onSessionClick,
   onSlotClick,
   onSessionUpdate,
@@ -34,9 +37,33 @@ export const WeekView: React.FC<WeekViewProps> = ({
 
   // Helper to get sessions for a specific day
   const getSessionsForDay = (day: Date) => {
-    return sessions.filter(
-      (session) => isSameDay(new Date(session.scheduled_at), day) && session.status !== "cancelled"
-    );
+    // Determine the date string for the column (Local)
+    const dayStr = format(day, "yyyy-MM-dd");
+
+    return sessions.filter((session) => {
+      // Determine the date string for the session (Colombia Wall Clock)
+      // session.scheduled_at is UTC. toColombianDateString converts it to YYYY-MM-DD
+      const sessionDateStr = session.scheduled_at.split("T")[0]; // Wait, session.scheduled_at is UTC string?
+      // If it is 03:00 tomorrow (UTC), splitting by T gives tomorrow!
+      // We MUST use toColombianDateString(new Date(session.scheduled_at)).
+
+      // However, I need to import toColombianDateString if not already imported.
+      // It is not imported in WeekView (only toColombianDate).
+      // I'll assume I update imports too.
+
+      // But wait, replace_file_content is single block.
+      // I'll do two replaces or rely on imports being present?
+      // WeekView imports checking...
+
+      // I'll stick to logic here:
+      // const colDate = toColombianDate(session.scheduled_at);
+      // const colStr = colDate.toISOString().split('T')[0];
+      // return colStr === dayStr;
+
+      const colDate = toColombianDate(session.scheduled_at);
+      const colStr = colDate.toISOString().split("T")[0];
+      return colStr === dayStr && session.status !== "cancelled";
+    });
   };
 
   const handleDayClick = (e: React.MouseEvent<HTMLDivElement>, day: Date) => {
@@ -137,7 +164,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
           const processedGroups = new Set<number>();
 
           daySessions.forEach((session) => {
-            if (session.session_group_id) {
+            if (session.session_group_id && !clientId) {
+              // Group sessions logic (only when NOT filtering by a single client)
               if (processedGroups.has(session.session_group_id)) return;
 
               processedGroups.add(session.session_group_id);
@@ -149,6 +177,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
                 label: `${groupCount} clientes`,
               });
             } else {
+              // Single session (or group session when filtering by client)
               processedSessions.push({ session });
             }
           });

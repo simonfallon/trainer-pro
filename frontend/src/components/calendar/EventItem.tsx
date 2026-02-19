@@ -3,6 +3,7 @@
 import React from "react";
 import { TrainingSession, Client } from "@/types";
 import { differenceInMinutes, format } from "date-fns";
+import { COLOMBIA_TIMEZONE, toColombianDate } from "@/lib/dateUtils";
 
 interface EventItemProps {
   session: TrainingSession;
@@ -17,8 +18,9 @@ export const EventItem: React.FC<EventItemProps> = ({ session, client, label, on
 
   // Calculate position and height
   // We assume the grid starts at 00:00 and each hour is 60px high (1px per minute)
-  const startDate = new Date(session.scheduled_at);
-  const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+  // Use Colombia time for positioning so it looks consistent regardless of user's browser timezone
+  const startDate = toColombianDate(session.scheduled_at);
+  const startMinutes = startDate.getUTCHours() * 60 + startDate.getUTCMinutes();
   const duration = session.duration_minutes;
 
   // Top position in pixels

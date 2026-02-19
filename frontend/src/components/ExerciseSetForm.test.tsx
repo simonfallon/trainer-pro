@@ -92,7 +92,7 @@ describe("ExerciseSetForm - Autocomplete", () => {
     // Wait for suggestions to appear
     await waitFor(
       () => {
-        expect(mockAutocomplete).toHaveBeenCalledWith(1, "Peso", 5);
+        expect(mockAutocomplete).toHaveBeenCalledWith(1, "Peso", 1000);
       },
       { timeout: 1000 }
     );
@@ -101,8 +101,9 @@ describe("ExerciseSetForm - Autocomplete", () => {
     expect(screen.getByText("Peso muerto rumano")).toBeInTheDocument();
   });
 
-  it("should not search if query is less than 2 characters", async () => {
+  it("should search with empty query on focus", async () => {
     const mockAutocomplete = vi.mocked(exerciseTemplatesApi.autocomplete);
+    mockAutocomplete.mockResolvedValue(mockTemplates);
 
     render(<ExerciseSetForm sessionId={sessionId} onSave={mockOnSave} onCancel={mockOnCancel} />);
 
@@ -110,15 +111,17 @@ describe("ExerciseSetForm - Autocomplete", () => {
     const addButton = screen.getByText("+ Agregar Ejercicio");
     fireEvent.click(addButton);
 
-    // Type single character
+    // Focus on the input
     const input = screen.getByPlaceholderText(/empieza a escribir para buscar/i);
-    fireEvent.change(input, { target: { value: "P" } });
+    fireEvent.focus(input);
 
-    // Wait to ensure no call happens
-    await new Promise((resolve) => setTimeout(resolve, 350));
-
-    // Should not call API
-    expect(mockAutocomplete).not.toHaveBeenCalled();
+    // Wait for API call
+    await waitFor(
+      () => {
+        expect(mockAutocomplete).toHaveBeenCalledWith(1, "", 1000);
+      },
+      { timeout: 1000 }
+    );
   });
 
   it("should select template when clicked", async () => {
@@ -177,7 +180,7 @@ describe("ExerciseSetForm - Autocomplete", () => {
     await waitFor(
       () => {
         expect(mockAutocomplete).toHaveBeenCalledTimes(1);
-        expect(mockAutocomplete).toHaveBeenCalledWith(1, "Peso", 5);
+        expect(mockAutocomplete).toHaveBeenCalledWith(1, "Peso", 1000);
       },
       { timeout: 1000 }
     );

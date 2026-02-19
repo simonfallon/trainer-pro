@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { sessionsApi, clientsApi, locationsApi } from "@/lib/api";
@@ -7,9 +8,12 @@ import { useDashboardApp } from "@/hooks/useDashboardApp";
 import type { TrainingSession, Client, Location } from "@/types";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { SessionModal } from "@/components/calendar/SessionModal";
+import { toUtcIsoString, interpretLocalAsColombian } from "@/lib/dateUtils";
 
 export default function CalendarPage() {
   const { app } = useDashboardApp();
+  const searchParams = useSearchParams();
+  const clientId = searchParams.get("client") ? Number(searchParams.get("client")) : undefined;
   const [clients, setClients] = useState<Client[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -30,9 +34,9 @@ export default function CalendarPage() {
   const startStr = start.toISOString();
   const endStr = end.toISOString();
 
-  const sessionsKey = `/sessions-${app.trainer_id}-${startStr}-${endStr}`;
+  const sessionsKey = `/sessions-${app.trainer_id}-${startStr}-${endStr}${clientId ? `-${clientId}` : ""}`;
   const { data: sessions = [] } = useSWR<TrainingSession[]>(sessionsKey, () =>
-    sessionsApi.list(app.trainer_id, startStr, endStr)
+    sessionsApi.list(app.trainer_id, startStr, endStr, clientId)
   );
 
   useEffect(() => {
@@ -45,12 +49,13 @@ export default function CalendarPage() {
   }, [app.trainer_id]);
 
   const handleSaveSession = async (data: any) => {
-    const scheduledAt = new Date(`${data.date}T${data.time}`);
+    // Convert Colombian input time to UTC ISO string for backend
+    const scheduledAtIso = toUtcIsoString(data.date, data.time);
 
     if (data.id) {
       // Editing existing session - only single client supported for now
       await sessionsApi.update(data.id, {
-        scheduled_at: scheduledAt.toISOString(),
+        scheduled_at: scheduledAtIso,
         duration_minutes: data.duration_minutes,
         notes: data.notes,
         client_id: data.client_ids[0], // Take first client for editing
@@ -64,7 +69,7 @@ export default function CalendarPage() {
           trainer_id: app.trainer_id,
           client_ids: data.client_ids,
           location_id: data.location_id || undefined,
-          scheduled_at: scheduledAt.toISOString(),
+          scheduled_at: scheduledAtIso,
           duration_minutes: data.duration_minutes,
           notes: data.notes.trim() || undefined,
         });
@@ -74,7 +79,7 @@ export default function CalendarPage() {
           trainer_id: app.trainer_id,
           client_id: data.client_ids[0],
           location_id: data.location_id || undefined,
-          scheduled_at: scheduledAt.toISOString(),
+          scheduled_at: scheduledAtIso,
           duration_minutes: data.duration_minutes,
           notes: data.notes.trim() || undefined,
         });
@@ -91,8 +96,12 @@ export default function CalendarPage() {
 
   const handleSessionUpdate = async (session: TrainingSession, newStart: Date) => {
     try {
+      // Convert the local grid time (which represents the intended visual time)
+      // to the corresponding UTC time in Colombia timezone
+      const scheduledAtIso = interpretLocalAsColombian(newStart);
+
       await sessionsApi.update(session.id, {
-        scheduled_at: newStart.toISOString(),
+        scheduled_at: scheduledAtIso,
       });
       mutate(sessionsKey);
     } catch (error) {
@@ -131,6 +140,7 @@ export default function CalendarPage() {
         sessions={sessions}
         clients={clients}
         currentDate={currentDate}
+        clientId={clientId}
         onDateChange={setCurrentDate}
         onSessionClick={handleSessionClick}
         onSlotClick={handleSlotClick}

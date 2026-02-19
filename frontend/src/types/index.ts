@@ -37,6 +37,38 @@ export interface ThemeConfig {
   };
 }
 
+// Lap Times by Location
+export interface SessionLapTimes {
+  session_id: number;
+  recorded_at: string;
+  lap_times_ms: number[];
+  total_laps: number;
+  best_time_ms: number;
+  average_time_ms: number;
+}
+
+export interface LocationLapTimes {
+  location_id: number | null;
+  location_name: string;
+  average_time_ms: number;
+  best_time_ms: number;
+  total_laps: number;
+  sessions: SessionLapTimes[];
+}
+
+// Exercise History
+export interface ExerciseHistoryEntry {
+  session_id: number;
+  date: string;
+  exercise_name: string;
+  data: Record<string, any>;
+}
+
+export interface ExerciseHistoryResponse {
+  exercises: string[]; // List of unique exercise names done by this client
+  history: ExerciseHistoryEntry[];
+}
+
 export type LocationType = "trainer_base" | "client_home" | "gym" | "track" | "other";
 
 export interface Location {
@@ -65,6 +97,7 @@ export interface Client {
   email: string | null;
   notes: string | null;
   default_location_id: number | null;
+  default_location: Location | null;
   google_id: string | null;
   // Profile fields
   photo_url: string | null;

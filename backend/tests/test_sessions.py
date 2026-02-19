@@ -101,3 +101,54 @@ class TestSessionEndpoints:
         assert get_response.status_code == 200
         data = get_response.json()
         assert data["status"] == "cancelled"
+
+    async def test_list_sessions_filter_by_client(
+        self,
+        client: AsyncClient,
+        test_trainer: Trainer,
+        test_client_record: Client,
+        test_session: TrainingSession,
+    ):
+        """Test filtering sessions by client."""
+        # Create another client and session
+        other_client_data = {
+            "trainer_id": test_trainer.id,
+            "name": "Other Client",
+            "phone": "5555555555",
+        }
+        resp = await client.post("/clients", json=other_client_data)
+        other_client_id = resp.json()["id"]
+
+        other_session_data = {
+            "trainer_id": test_trainer.id,
+            "client_id": other_client_id,
+            "scheduled_at": (datetime.now() + timedelta(days=2)).isoformat(),
+            "duration_minutes": 60,
+            "notes": "Other session",
+        }
+        await client.post("/sessions", json=other_session_data)
+
+        # List all sessions
+        response = await client.get(f"/sessions?trainer_id={test_trainer.id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 2
+
+        # Filter by original client
+        response = await client.get(
+            f"/sessions?trainer_id={test_trainer.id}&client_id={test_client_record.id}"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Should only have sessions for this client
+        assert all(s["client_id"] == test_client_record.id for s in data)
+        # Should contain our test_session
+        assert any(s["id"] == test_session.id for s in data)
+
+        # Filter by other client
+        response = await client.get(
+            f"/sessions?trainer_id={test_trainer.id}&client_id={other_client_id}"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert all(s["client_id"] == other_client_id for s in data)

@@ -39,7 +39,7 @@ async def autocomplete_exercise_templates(
     trainer_app_id: int = Query(..., description="Trainer app ID to filter templates"),
     q: str = Query("", description="Search query"),
     discipline_type: str | None = Query(None, description="Filter by discipline type"),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of results"),
+    limit: int = Query(10, ge=1, le=1000, description="Maximum number of results"),
     db: AsyncSession = Depends(get_db),
 ):
     """

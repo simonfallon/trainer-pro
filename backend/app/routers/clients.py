@@ -7,12 +7,21 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.database import get_db
 from app.models.client import Client
 from app.models.payment import Payment
 from app.models.session import SessionStatus, TrainingSession
-from app.schemas.client import ClientCreate, ClientResponse, ClientUpdate
+from app.schemas.client import (
+    ClientCreate,
+    ClientResponse,
+    ClientUpdate,
+    ExerciseHistoryEntry,
+    ExerciseHistoryResponse,
+    LocationLapTimes,
+    SessionLapTimes,
+)
 from app.schemas.payment import PaymentBalanceResponse, PaymentCreate, PaymentResponse
 from app.schemas.session import SessionResponse
 
@@ -26,7 +35,11 @@ async def list_clients(
     db: AsyncSession = Depends(get_db),
 ):
     """List all clients for a trainer."""
-    query = select(Client).where(Client.trainer_id == trainer_id)
+    query = (
+        select(Client)
+        .where(Client.trainer_id == trainer_id)
+        .options(joinedload(Client.default_location))
+    )
 
     if not include_deleted:
         query = query.where(Client.deleted_at.is_(None))
@@ -41,7 +54,10 @@ async def get_client(
     db: AsyncSession = Depends(get_db),
 ):
     """Get a client by ID."""
-    result = await db.execute(select(Client).where(Client.id == client_id))
+    query = (
+        select(Client).where(Client.id == client_id).options(joinedload(Client.default_location))
+    )
+    result = await db.execute(query)
     client = result.scalar_one_or_none()
 
     if not client:
@@ -74,8 +90,12 @@ async def create_client(
     )
     db.add(client)
     await db.flush()
-    await db.refresh(client)
-    return client
+    # Re-query to load relationships
+    query = (
+        select(Client).where(Client.id == client.id).options(joinedload(Client.default_location))
+    )
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 @router.put("/{client_id}", response_model=ClientResponse)
@@ -99,8 +119,12 @@ async def update_client(
         setattr(client, field, value)
 
     await db.flush()
-    await db.refresh(client)
-    return client
+    # Re-query to load relationships
+    query = (
+        select(Client).where(Client.id == client_id).options(joinedload(Client.default_location))
+    )
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -258,3 +282,182 @@ async def register_client_payment(
     await db.flush()
     await db.refresh(payment)
     return payment
+
+
+@router.get("/{client_id}/lap-times-by-location", response_model=list[LocationLapTimes])
+async def get_client_lap_times_by_location(
+    client_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get lap times aggregated by location for a BMX client.
+    Returns lap times grouped by training location/track.
+    """
+    from app.models.location import Location
+    from app.models.session_exercise import SessionExercise
+
+    # Verify client exists
+    client_result = await db.execute(select(Client).where(Client.id == client_id))
+    if not client_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    # Get all lap time measurements for this client
+    # Join: training_sessions -> session_exercises where custom_name = "Toma de Tiempo BMX"
+    query = (
+        select(
+            TrainingSession.location_id,
+            Location.name.label("location_name"),
+            SessionExercise.data,
+            TrainingSession.id.label("session_id"),
+            TrainingSession.scheduled_at,
+        )
+        .join(SessionExercise, SessionExercise.session_id == TrainingSession.id)
+        .outerjoin(Location, Location.id == TrainingSession.location_id)
+        .where(
+            TrainingSession.client_id == client_id,
+            SessionExercise.custom_name == "Toma de Tiempo BMX",
+        )
+        .order_by(TrainingSession.scheduled_at.desc())
+    )
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Aggregate by location, then by session
+    location_map: dict[int | None, dict] = {}
+
+    for row in rows:
+        location_id = row.location_id
+        location_name = row.location_name or "Sin ubicación"
+        lap_times_ms = row.data.get("lap_times_ms", [])
+        session_id = row.session_id
+        recorded_at = row.scheduled_at
+
+        if location_id not in location_map:
+            location_map[location_id] = {
+                "location_id": location_id,
+                "location_name": location_name,
+                "sessions": {},
+                "all_times": [],
+            }
+
+        # Group by session
+        if session_id not in location_map[location_id]["sessions"]:
+            location_map[location_id]["sessions"][session_id] = {
+                "session_id": session_id,
+                "recorded_at": recorded_at,
+                "lap_times_ms": [],
+            }
+
+        # Add lap times to this session
+        location_map[location_id]["sessions"][session_id]["lap_times_ms"].extend(lap_times_ms)
+        location_map[location_id]["all_times"].extend(lap_times_ms)
+
+    # Calculate aggregates for each location and session
+    result_list = []
+    for loc_data in location_map.values():
+        all_times = loc_data["all_times"]
+        if not all_times:
+            continue
+
+        # Build session list with statistics
+        sessions = []
+        for session_data in loc_data["sessions"].values():
+            session_times = session_data["lap_times_ms"]
+            if session_times:
+                sessions.append(
+                    SessionLapTimes(
+                        session_id=session_data["session_id"],
+                        recorded_at=session_data["recorded_at"],
+                        lap_times_ms=session_times,
+                        total_laps=len(session_times),
+                        best_time_ms=min(session_times),
+                        average_time_ms=int(sum(session_times) / len(session_times)),
+                    )
+                )
+
+        # Sort sessions by date descending (newest first)
+        sessions.sort(key=lambda s: s.recorded_at, reverse=True)
+
+        result_list.append(
+            LocationLapTimes(
+                location_id=loc_data["location_id"],
+                location_name=loc_data["location_name"],
+                total_laps=len(all_times),
+                best_time_ms=min(all_times),
+                average_time_ms=int(sum(all_times) / len(all_times)),
+                sessions=sessions,
+            )
+        )
+
+    return result_list
+
+
+@router.get("/{client_id}/exercise-history", response_model=ExerciseHistoryResponse)
+async def get_client_exercise_history(
+    client_id: int,
+    exercise_name: str | None = Query(None, description="Filter by specific exercise name"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get exercise history for a physio client.
+    Returns all exercises done by the client with optional filtering by exercise name.
+    """
+    from app.models.session_exercise import SessionExercise
+
+    # Verify client exists
+    client_result = await db.execute(select(Client).where(Client.id == client_id))
+    if not client_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Client not found",
+        )
+
+    # Get all exercises for this client (excluding lap time measurements)
+    query = (
+        select(
+            SessionExercise.custom_name,
+            SessionExercise.data,
+            TrainingSession.id.label("session_id"),
+            TrainingSession.scheduled_at,
+        )
+        .join(TrainingSession, TrainingSession.id == SessionExercise.session_id)
+        .where(
+            TrainingSession.client_id == client_id,
+            SessionExercise.custom_name.isnot(None),
+            SessionExercise.custom_name != "Toma de Tiempo BMX",
+        )
+        .order_by(TrainingSession.scheduled_at.desc())
+    )
+
+    # Apply exercise name filter if provided
+    if exercise_name:
+        query = query.where(SessionExercise.custom_name == exercise_name)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Collect unique exercise names and history entries
+    exercises_set = set()
+    history = []
+
+    for row in rows:
+        exercise_name_val = row.custom_name
+        exercises_set.add(exercise_name_val)
+
+        history.append(
+            ExerciseHistoryEntry(
+                session_id=row.session_id,
+                date=row.scheduled_at,
+                exercise_name=exercise_name_val,
+                data=row.data,
+            )
+        )
+
+    return ExerciseHistoryResponse(
+        exercises=sorted(list(exercises_set)),
+        history=history,
+    )

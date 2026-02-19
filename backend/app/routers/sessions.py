@@ -34,6 +34,7 @@ async def list_sessions(
     start_date: datetime | None = Query(None, description="Filter sessions from this date"),
     end_date: datetime | None = Query(None, description="Filter sessions until this date"),
     status_filter: str | None = Query(None, description="Filter by session status"),
+    client_id: int | None = Query(None, description="Filter sessions by client ID"),
     db: AsyncSession = Depends(get_db),
 ):
     """List all sessions for a trainer with optional date range filter."""
@@ -45,6 +46,8 @@ async def list_sessions(
         query = query.where(TrainingSession.scheduled_at <= end_date)
     if status_filter:
         query = query.where(TrainingSession.status == status_filter)
+    if client_id:
+        query = query.where(TrainingSession.client_id == client_id)
 
     query = query.order_by(TrainingSession.scheduled_at)
     result = await db.execute(query)

@@ -82,17 +82,11 @@ export function ExerciseSetForm({
       clearTimeout(searchTimeoutRef.current[index]);
     }
 
-    // Don't search if query is too short
-    if (value.trim().length < 2) {
-      setSuggestions((prev) => ({ ...prev, [index]: [] }));
-      setShowSuggestions((prev) => ({ ...prev, [index]: false }));
-      return;
-    }
-
     // Debounce search
     searchTimeoutRef.current[index] = setTimeout(async () => {
       try {
-        const results = await exerciseTemplatesApi.autocomplete(app.id, value, 5);
+        // Fetch 1000 results to show essentially all exercises
+        const results = await exerciseTemplatesApi.autocomplete(app.id, value, 1000);
         setSuggestions((prev) => ({ ...prev, [index]: results }));
         setShowSuggestions((prev) => ({ ...prev, [index]: true }));
       } catch (err) {
@@ -301,7 +295,14 @@ export function ExerciseSetForm({
                     </div>
 
                     {/* Autocomplete Input */}
-                    <div style={{ position: "relative" }}>
+                    <div
+                      style={{
+                        position: "relative",
+                        marginBottom:
+                          showSuggestions[index] && suggestions[index]?.length > 0 ? "240px" : "0",
+                        transition: "margin-bottom 0.2s ease-out",
+                      }}
+                    >
                       <input
                         type="text"
                         className="form-input"
@@ -316,6 +317,10 @@ export function ExerciseSetForm({
                         placeholder="Nombre del ejercicio (empieza a escribir para buscar)"
                         style={{ fontSize: "0.875rem" }}
                         required
+                        onFocus={() => {
+                          // Trigger search on focus with current value (even if empty)
+                          handleExerciseNameChange(index, exercise.custom_name || "");
+                        }}
                       />
 
                       {/* Autocomplete Dropdown */}
@@ -330,7 +335,7 @@ export function ExerciseSetForm({
                             border: `1px solid ${theme.colors.secondary}30`,
                             borderRadius: "4px",
                             marginTop: "0.25rem",
-                            maxHeight: "200px",
+                            maxHeight: "240px",
                             overflowY: "auto",
                             boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
                             zIndex: 1000,

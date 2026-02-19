@@ -1,18 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
-import { useRouter } from "next/navigation";
-import { clientsApi } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import { clientsApi, locationsApi } from "@/lib/api";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
-import type { Client } from "@/types";
+import type { Client, Location } from "@/types";
 
 export default function ClientsPage() {
   const { app } = useDashboardApp();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const swrKey = `/clients-list-${app.trainer_id}`;
   const { data: clients = [], isLoading } = useSWR<Client[]>(swrKey, () =>
     clientsApi.list(app.trainer_id)
+  );
+
+  const { data: locations = [] } = useSWR<Location[]>(`/locations-list-${app.trainer_id}`, () =>
+    locationsApi.list(app.trainer_id)
   );
 
   const [showForm, setShowForm] = useState(false);
@@ -21,9 +26,25 @@ export default function ClientsPage() {
     phone: "",
     email: "",
     notes: "",
+    birth_date: "",
+    gender: "",
+    height_cm: "",
+    weight_kg: "",
+    default_location_id: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  // Check for "new" query param to auto-open form
+  useEffect(() => {
+    if (searchParams.get("new") === "true") {
+      setShowForm(true);
+      // Optional: Clean up URL without refreshing
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("new");
+      window.history.replaceState({}, "", newUrl.toString());
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,10 +60,27 @@ export default function ClientsPage() {
         phone: formData.phone.trim(),
         email: formData.email.trim() || undefined,
         notes: formData.notes.trim() || undefined,
+        birth_date: formData.birth_date || undefined,
+        gender: formData.gender || undefined,
+        height_cm: formData.height_cm ? parseInt(formData.height_cm) : undefined,
+        weight_kg: formData.weight_kg ? parseFloat(formData.weight_kg) : undefined,
+        default_location_id: formData.default_location_id
+          ? parseInt(formData.default_location_id)
+          : undefined,
       });
       mutate(swrKey);
       setShowForm(false);
-      setFormData({ name: "", phone: "", email: "", notes: "" });
+      setFormData({
+        name: "",
+        phone: "",
+        email: "",
+        notes: "",
+        birth_date: "",
+        gender: "",
+        height_cm: "",
+        weight_kg: "",
+        default_location_id: "",
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al agregar el cliente");
     } finally {
@@ -128,6 +166,90 @@ export default function ClientsPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="cliente@email.com"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clientBirthDate">
+                    Fecha de Nacimiento
+                  </label>
+                  <input
+                    id="clientBirthDate"
+                    type="date"
+                    className="form-input"
+                    value={formData.birth_date}
+                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clientGender">
+                    Género
+                  </label>
+                  <select
+                    id="clientGender"
+                    className="form-select"
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                  >
+                    <option value="">Seleccionar...</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Femenino</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clientHeight">
+                    Altura (cm)
+                  </label>
+                  <input
+                    id="clientHeight"
+                    type="number"
+                    className="form-input"
+                    value={formData.height_cm}
+                    onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
+                    placeholder="Ej: 175"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="clientWeight">
+                    Peso (kg)
+                  </label>
+                  <input
+                    id="clientWeight"
+                    type="number"
+                    step="0.1"
+                    className="form-input"
+                    value={formData.weight_kg}
+                    onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value })}
+                    placeholder="Ej: 70.5"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="clientLocation">
+                  Ubicación Predeterminada
+                </label>
+                <select
+                  id="clientLocation"
+                  className="form-select"
+                  value={formData.default_location_id}
+                  onChange={(e) =>
+                    setFormData({ ...formData, default_location_id: e.target.value })
+                  }
+                >
+                  <option value="">Ninguna</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="form-group">

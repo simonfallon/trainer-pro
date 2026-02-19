@@ -5,6 +5,14 @@ import { TrainingSession, Client, Location } from "@/types";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { SESSION_STATUS_LABELS } from "@/lib/labels";
+import {
+  formatDate,
+  toColombianDateString,
+  toColombianTimeString,
+  formatColombianTime,
+  toColombianDate, // Kept if needed, otherwise removed
+  COLOMBIA_TIMEZONE,
+} from "@/lib/dateUtils";
 
 interface SessionModalProps {
   mode: "create" | "view" | "edit";
@@ -46,13 +54,12 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     if (mode === "create" && initialDate) {
       setFormData((prev) => ({
         ...prev,
-        date: format(initialDate, "yyyy-MM-dd"),
-        time: format(initialDate, "HH:mm"),
+        date: toColombianDateString(initialDate),
+        time: toColombianTimeString(initialDate),
       }));
     } else if ((mode === "edit" || mode === "view") && session) {
       const date = new Date(session.scheduled_at);
 
-      // Determine all client IDs involved
       // Determine all client IDs involved
       let clientIds: number[] = [session.client_id];
       if (groupSessions && groupSessions.length > 0) {
@@ -62,8 +69,8 @@ export const SessionModal: React.FC<SessionModalProps> = ({
       setFormData({
         client_ids: clientIds,
         location_id: session.location_id != null ? String(session.location_id) : "",
-        date: format(date, "yyyy-MM-dd"),
-        time: format(date, "HH:mm"),
+        date: toColombianDateString(date),
+        time: toColombianTimeString(date),
         duration_minutes: session.duration_minutes,
         notes: session.notes || "",
       });
@@ -158,13 +165,15 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                 <label className="form-label" style={{ fontSize: "0.75rem" }}>
                   Fecha
                 </label>
-                <p>{format(new Date(session.scheduled_at), "EEEE d MMMM, yyyy", { locale: es })}</p>
+                <p>{formatDate(session.scheduled_at)}</p>
               </div>
               <div>
                 <label className="form-label" style={{ fontSize: "0.75rem" }}>
                   Hora
                 </label>
-                <p>{format(new Date(session.scheduled_at), "h:mm a")}</p>
+                <p>
+                  <p>{formatColombianTime(session.scheduled_at)}</p>
+                </p>
               </div>
             </div>
             <div>

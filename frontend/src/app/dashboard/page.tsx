@@ -183,7 +183,7 @@ export default function DashboardHomePage() {
           >
             {startingSession ? "Iniciando..." : "Iniciar Sesión"}
           </button>
-          <a href={`/dashboard/clients?app_id=${app.id}`} className="btn btn-secondary">
+          <a href={`/dashboard/clients?app_id=${app.id}&new=true`} className="btn btn-secondary">
             Agregar Nuevo Cliente
           </a>
           <a href={`/dashboard/calendar?app_id=${app.id}`} className="btn btn-secondary">

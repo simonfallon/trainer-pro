@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { sessionsApi, exerciseSetsApi } from "@/lib/api";
 import { useDarkStyles } from "@/hooks/useDarkStyles";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
-import { formatDate } from "@/lib/dateUtils";
+import { formatDate, formatLapTime } from "@/lib/dateUtils";
 import { SESSION_STATUS_LABELS } from "@/lib/labels";
 import type { TrainingSession, SessionExercise, ExerciseSet } from "@/types";
 import { ExerciseSetDisplay } from "./ExerciseSetDisplay";
@@ -60,15 +60,6 @@ export function SessionDetailModal({
     } finally {
       setLoading(false);
     }
-  };
-
-  // Format milliseconds to MM:SS.CS (centiseconds)
-  const formatLapTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const centiseconds = Math.floor((ms % 1000) / 10);
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
   };
 
   // Filter exercises to get lap time measurements and regular exercises

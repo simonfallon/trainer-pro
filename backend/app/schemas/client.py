@@ -6,6 +6,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, computed_field
 
+from app.schemas.location import LocationResponse
+
 
 class ClientBase(BaseModel):
     """Base client schema."""
@@ -51,6 +53,7 @@ class ClientResponse(ClientBase):
     id: int
     trainer_id: int
     google_id: str | None = None
+    default_location: LocationResponse | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -68,3 +71,43 @@ class ClientResponse(ClientBase):
 
     class Config:
         from_attributes = True
+
+
+# Lap Times by Location
+class SessionLapTimes(BaseModel):
+    """Lap times for a single session."""
+
+    session_id: int
+    recorded_at: datetime
+    lap_times_ms: list[int]
+    total_laps: int
+    best_time_ms: int
+    average_time_ms: int
+
+
+class LocationLapTimes(BaseModel):
+    """Lap times aggregated by location."""
+
+    location_id: int | None
+    location_name: str
+    average_time_ms: int
+    best_time_ms: int
+    total_laps: int
+    sessions: list[SessionLapTimes]
+
+
+# Exercise History
+class ExerciseHistoryEntry(BaseModel):
+    """Single exercise history entry."""
+
+    session_id: int
+    date: datetime
+    exercise_name: str
+    data: dict
+
+
+class ExerciseHistoryResponse(BaseModel):
+    """Exercise history for a client."""
+
+    exercises: list[str]  # List of unique exercise names
+    history: list[ExerciseHistoryEntry]

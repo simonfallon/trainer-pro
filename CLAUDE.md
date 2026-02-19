@@ -55,13 +55,13 @@ npm run format    # Prettier
 ```
 
 ### Testing
+- **CRITICAL**: Always use `make` commands to run tests. Do not run `pytest` or `npm test` directly.
 ```bash
 # Backend (pytest, requires PostgreSQL test DB)
-cd backend && poetry run pytest -v
-# Override test DB: TEST_DATABASE_URL=<url> poetry run pytest
+make test-backend
 
 # Frontend (Vitest)
-cd frontend && npm test
+make test-frontend
 ```
 
 ### Code Quality

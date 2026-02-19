@@ -15,7 +15,6 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("app_id=1"),
 }));
 
-// Theme
 vi.mock("@/components/ThemeProvider", () => ({
   useTheme: () => ({
     theme: {
@@ -25,6 +24,17 @@ vi.mock("@/components/ThemeProvider", () => ({
         background: "#ffffff",
         text: "#111827",
       },
+    },
+  }),
+}));
+
+// useDashboardApp
+vi.mock("@/hooks/useDashboardApp", () => ({
+  useDashboardApp: () => ({
+    trainer: {
+      id: 1,
+      name: "Entrenador Test",
+      discipline_type: "physio",
     },
   }),
 }));
@@ -152,19 +162,14 @@ describe("ClientDetailPage", () => {
     render(<ClientDetailPage />);
 
     // Card 1: "Sesiones Pagadas" → paid / total = "1 / 2"
-    expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    expect(screen.getByText("1/2")).toBeInTheDocument();
     expect(screen.getByText("Sesiones Pagadas")).toBeInTheDocument();
 
     // Card 2: "Total Pagado"
     // The component renders: $ 150.000 COP
-    // We use a function matcher to be flexible with whitespace
-    expect(
-      screen.getByText((content) => {
-        const normalized = content.replace(/\s+/g, " ").trim();
-        return normalized.includes("150.000") && normalized.includes("COP");
-      })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Total Pagado")).toBeInTheDocument();
+    // We use a function matcher that is tolerant of formatting details
+    expect(screen.getByText((content) => content.includes("150.000"))).toBeInTheDocument();
+    expect(screen.getByText("Total Pagado (COP)")).toBeInTheDocument();
   });
 
   // 3. Personal info fields render
@@ -240,5 +245,36 @@ describe("ClientDetailPage", () => {
     render(<ClientDetailPage />);
 
     expect(screen.getByText("Error al cargar el cliente")).toBeInTheDocument();
+  });
+
+  // 9. Default location
+  it("muestra la ubicación por defecto si existe", () => {
+    const clientWithLocation = {
+      ...mockClient,
+      default_location: {
+        id: 10,
+        trainer_id: 1,
+        name: "Gimnasio Central",
+        type: "gym" as const,
+        address_line1: "Calle 123",
+        address_line2: null,
+        city: "Bogotá",
+        region: null,
+        postal_code: null,
+        country: "Colombia",
+        latitude: null,
+        longitude: null,
+        google_place_id: null,
+        created_at: "2026-01-01",
+        updated_at: "2026-01-01",
+      },
+    };
+    // Override the mock response for this test
+    mockSWRResponses["/clients/1"] = { data: clientWithLocation };
+
+    render(<ClientDetailPage />);
+
+    expect(screen.getByText("Ubicación")).toBeInTheDocument();
+    expect(screen.getByText("Gimnasio Central")).toBeInTheDocument();
   });
 });

@@ -87,34 +87,55 @@ async def seed_data():
         # BMX Locations
         bmx_track = Location(
             trainer_id=bmx_trainer.id,
-            name="Pista Motocross Road Track Guarne",
+            name="Pista Carlos Ramírez",
             type="track",
-            address_line1="Guarne, Antioquia",
-            city="Guarne",
+            address_line1="Unidad Deportiva de Belén",
+            city="Medellín",
             region="Antioquia",
             country="Colombia",
-            latitude=6.243704,
-            longitude=-75.4371669,
-            google_place_id="ChIJp-f-Q0onRo4RjE1ExuY43Fc",
+            latitude=6.223,
+            longitude=-75.590,
         )
         db.add(bmx_track)
+
+        bmx_track_envigado = Location(
+            trainer_id=bmx_trainer.id,
+            name="Pista Envigado",
+            type="track",
+            city="Envigado",
+            region="Antioquia",
+            country="Colombia",
+        )
+        db.add(bmx_track_envigado)
+
         await db.flush()
-        print("  ✓ Created BMX location")
+        await db.refresh(bmx_track)
+        await db.refresh(bmx_track_envigado)
+
+        bmx_locations = [bmx_track, bmx_track_envigado]
+        print(f"  ✓ Created {len(bmx_locations)} BMX locations")
 
         # BMX Clients
         bmx_clients = []
-        for _i, (name, phone) in enumerate(
+        for _i, (name, phone, birth_date, gender, height_cm, weight_kg) in enumerate(
             [
-                ("Santiago Ramírez", "+57 301 111 1111"),
-                ("Valentina Torres", "+57 302 222 2222"),
-                ("Mateo Gómez", "+57 303 333 3333"),
+                ("Santiago Ramírez", "+57 301 111 1111", datetime(1994, 7, 20), "M", 175, 75.0),
+                ("Valentina Torres", "+57 302 222 2222", datetime(1998, 3, 15), "F", 165, 58.0),
+                ("Mateo Gómez", "+57 303 333 3333", datetime(2000, 11, 5), "M", 180, 82.0),
             ]
         ):
+            # Randomly assign a location
+            client_location = bmx_locations[_i % len(bmx_locations)]
+
             client = Client(
                 trainer_id=bmx_trainer.id,
                 name=name,
                 phone=phone,
-                default_location_id=bmx_track.id,
+                default_location_id=client_location.id,
+                birth_date=birth_date,
+                gender=gender,
+                height_cm=height_cm,
+                weight_kg=weight_kg,
             )
             db.add(client)
             bmx_clients.append(client)
@@ -272,24 +293,69 @@ async def seed_data():
             google_place_id="ChIJbXLWBOGDRo4R3RcRdWiIYig",
         )
         db.add(home_location)
+
+        physio_center_laureles = Location(
+            trainer_id=physio_trainer.id,
+            name="Consultorio Laureles",
+            type="trainer_base",
+            city="Medellín",
+        )
+        db.add(physio_center_laureles)
+
         await db.flush()
-        print("  ✓ Created 2 Physio locations")
+        await db.refresh(physio_center)
+        await db.refresh(home_location)
+        await db.refresh(physio_center_laureles)
+
+        physio_locations = [physio_center, home_location, physio_center_laureles]
+        print(f"  ✓ Created {len(physio_locations)} Physio locations")
 
         # Physio Clients
         physio_clients = []
-        for _i, (name, phone, email) in enumerate(
+        for _i, (name, phone, email, birth_date, gender, height_cm, weight_kg) in enumerate(
             [
-                ("Ana García", "+57 301 444 4444", "ana@example.com"),
-                ("Carlos Rodríguez", "+57 302 555 5555", "carlos@example.com"),
-                ("María López", "+57 303 666 6666", "maria@example.com"),
+                (
+                    "Ana García",
+                    "+57 301 444 4444",
+                    "ana@example.com",
+                    datetime(1985, 5, 10),
+                    "F",
+                    160,
+                    60.0,
+                ),
+                (
+                    "Carlos Rodríguez",
+                    "+57 302 555 5555",
+                    "carlos@example.com",
+                    datetime(1978, 9, 22),
+                    "M",
+                    178,
+                    85.0,
+                ),
+                (
+                    "María López",
+                    "+57 303 666 6666",
+                    "maria@example.com",
+                    datetime(1990, 12, 1),
+                    "F",
+                    168,
+                    65.0,
+                ),
             ]
         ):
+            # Randomly assign a location
+            client_location = physio_locations[_i % len(physio_locations)]
+
             client = Client(
                 trainer_id=physio_trainer.id,
                 name=name,
                 phone=phone,
                 email=email,
-                default_location_id=physio_center.id,
+                default_location_id=client_location.id,
+                birth_date=birth_date,
+                gender=gender,
+                height_cm=height_cm,
+                weight_kg=weight_kg,
             )
             db.add(client)
             physio_clients.append(client)

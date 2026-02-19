@@ -12,6 +12,7 @@ interface CalendarViewProps {
   sessions: TrainingSession[];
   clients: Client[];
   currentDate: Date;
+  clientId?: number;
   onDateChange: (date: Date) => void;
   onSessionClick: (session: TrainingSession) => void;
   onSlotClick: (date: Date) => void;
@@ -24,6 +25,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   sessions,
   clients,
   currentDate,
+  clientId,
   onDateChange,
   onSessionClick,
   onSlotClick,
@@ -122,6 +124,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             currentDate={currentDate}
             sessions={sessions}
             clients={clients}
+            clientId={clientId}
             onSessionClick={onSessionClick}
             onSlotClick={onSlotClick}
             onSessionUpdate={onSessionUpdate}
@@ -131,6 +134,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             currentDate={currentDate}
             sessions={sessions}
             clients={clients}
+            clientId={clientId}
             onSessionClick={onSessionClick}
             onSlotClick={onSlotClick}
             onSessionUpdate={onSessionUpdate}

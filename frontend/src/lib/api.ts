@@ -114,14 +114,24 @@ export const clientsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  getLapTimesByLocation: (clientId: number) =>
+    fetchAPI<import("@/types").LocationLapTimes[]>(`/clients/${clientId}/lap-times-by-location`),
+  getExerciseHistory: (clientId: number, exerciseName?: string) => {
+    let url = `/clients/${clientId}/exercise-history`;
+    if (exerciseName) {
+      url += `?exercise_name=${encodeURIComponent(exerciseName)}`;
+    }
+    return fetchAPI<import("@/types").ExerciseHistoryResponse>(url);
+  },
 };
 
 // Sessions API
 export const sessionsApi = {
-  list: (trainerId: number, startDate?: string, endDate?: string) => {
+  list: (trainerId: number, startDate?: string, endDate?: string, clientId?: number) => {
     let url = `/sessions?trainer_id=${trainerId}`;
     if (startDate) url += `&start_date=${startDate}`;
     if (endDate) url += `&end_date=${endDate}`;
+    if (clientId) url += `&client_id=${clientId}`;
     return fetchAPI<import("@/types").TrainingSession[]>(url);
   },
   get: (id: number) => fetchAPI<import("@/types").TrainingSession>(`/sessions/${id}`),
