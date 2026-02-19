@@ -7,12 +7,13 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_utils import COOKIE_NAME, create_session_token, get_current_trainer_id
 from app.config import get_settings
 from app.database import get_db
 from app.models.app import TrainerApp
@@ -60,7 +61,9 @@ async def get_google_auth_url():
 
 
 @router.post("/google/exchange")
-async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)):
+async def exchange_google_code(
+    payload: dict, response: Response, db: AsyncSession = Depends(get_db)
+):
     """
     Exchange authorization code for tokens and sign in/up the trainer.
     """
@@ -82,12 +85,12 @@ async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(token_url, data=data)
+        token_response = await client.post(token_url, data=data)
 
-    if response.status_code != 200:
+    if token_response.status_code != 200:
         raise HTTPException(status_code=400, detail="Failed to retrieve tokens from Google")
 
-    tokens = response.json()
+    tokens = token_response.json()
     id_token_jwt = tokens.get("id_token")
     access_token = tokens.get("access_token")
     refresh_token = tokens.get(
@@ -146,6 +149,15 @@ async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)
     app_result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer.id))
     app = app_result.scalar_one_or_none()
 
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=create_session_token(trainer.id),
+        httponly=True,
+        secure=False,  # Set to True in production (HTTPS)
+        samesite="lax",
+        max_age=60 * 60 * 168,  # 7 days
+        path="/",
+    )
     return {
         "trainer_id": trainer.id,
         "email": trainer.email,
@@ -155,3 +167,34 @@ async def exchange_google_code(payload: dict, db: AsyncSession = Depends(get_db)
         "app_id": app.id if app else None,
         "app_name": app.name if app else None,
     }
+
+
+@router.get("/me")
+async def get_current_user(
+    trainer_id: int = Depends(get_current_trainer_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return current session info. Used by frontend to restore auth state."""
+    result = await db.execute(select(Trainer).where(Trainer.id == trainer_id))
+    trainer = result.scalar_one_or_none()
+    if not trainer:
+        raise HTTPException(status_code=404, detail="Trainer no encontrado")
+
+    app_result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer.id))
+    app = app_result.scalar_one_or_none()
+
+    return {
+        "trainer_id": trainer.id,
+        "email": trainer.email,
+        "name": trainer.name,
+        "has_app": app is not None,
+        "app_id": app.id if app else None,
+        "app_name": app.name if app else None,
+    }
+
+
+@router.post("/logout")
+async def logout(response: Response):
+    """Clear the session cookie."""
+    response.delete_cookie(key=COOKIE_NAME, path="/")
+    return {"detail": "Sesión cerrada"}

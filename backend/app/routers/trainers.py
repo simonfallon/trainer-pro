@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_utils import get_current_trainer_id
 from app.database import get_db
 from app.models.trainer import Trainer
 from app.schemas.trainer import TrainerCreate, TrainerResponse, TrainerUpdate
@@ -16,9 +17,13 @@ router = APIRouter()
 @router.get("/{trainer_id}", response_model=TrainerResponse)
 async def get_trainer(
     trainer_id: int,
+    current_trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get a trainer by ID."""
+    """Get the authenticated trainer's own record."""
+    if trainer_id != current_trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     result = await db.execute(select(Trainer).where(Trainer.id == trainer_id))
     trainer = result.scalar_one_or_none()
 
@@ -36,7 +41,7 @@ async def create_trainer(
     trainer_data: TrainerCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new trainer."""
+    """Create a new trainer. Used internally by the auth flow; not called by authenticated users."""
     trainer = Trainer(
         name=trainer_data.name,
         phone=trainer_data.phone,
@@ -53,9 +58,13 @@ async def create_trainer(
 async def update_trainer(
     trainer_id: int,
     trainer_data: TrainerUpdate,
+    current_trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update a trainer."""
+    """Update the authenticated trainer's own record."""
+    if trainer_id != current_trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
     result = await db.execute(select(Trainer).where(Trainer.id == trainer_id))
     trainer = result.scalar_one_or_none()
 

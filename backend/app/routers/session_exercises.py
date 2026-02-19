@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_utils import get_current_trainer_id
 from app.database import get_db
 from app.models.exercise_template import ExerciseTemplate
 from app.models.session import TrainingSession
@@ -21,21 +22,38 @@ from app.schemas.session_exercise import (
 router = APIRouter()
 
 
+async def _verify_session_ownership(
+    session_id: int, trainer_id: int, db: AsyncSession
+) -> TrainingSession:
+    result = await db.execute(select(TrainingSession).where(TrainingSession.id == session_id))
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Training session not found"
+        )
+    if session.trainer_id != trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+    return session
+
+
+async def _verify_group_ownership(group_id: int, trainer_id: int, db: AsyncSession) -> SessionGroup:
+    result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
+    group = result.scalar_one_or_none()
+    if not group:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session group not found")
+    if group.trainer_id != trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+    return group
+
+
 @router.get("/sessions/{session_id}/exercises", response_model=list[SessionExerciseResponse])
 async def list_session_exercises(
     session_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """List all exercises for a training session."""
-    # Verify session exists
-    session_result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
-    if not session_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Training session not found",
-        )
+    await _verify_session_ownership(session_id, trainer_id, db)
 
     query = (
         select(SessionExercise)
@@ -49,16 +67,11 @@ async def list_session_exercises(
 @router.get("/session-groups/{group_id}/exercises", response_model=list[SessionExerciseResponse])
 async def list_session_group_exercises(
     group_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """List all exercises for a session group."""
-    # Verify group exists
-    group_result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
-    if not group_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session group not found",
-        )
+    await _verify_group_ownership(group_id, trainer_id, db)
 
     query = (
         select(SessionExercise)
@@ -77,24 +90,15 @@ async def list_session_group_exercises(
 async def create_session_exercise(
     session_id: int,
     exercise_data: SessionExerciseCreate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Add an exercise to a training session."""
-    # Verify session exists
-    session_result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
-    if not session_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Training session not found",
-        )
+    await _verify_session_ownership(session_id, trainer_id, db)
 
-    # Override session_id from path parameter
     exercise_data.session_id = session_id
     exercise_data.session_group_id = None
 
-    # If using a template, increment usage count
     if exercise_data.exercise_template_id:
         template_result = await db.execute(
             select(ExerciseTemplate).where(
@@ -127,22 +131,15 @@ async def create_session_exercise(
 async def create_session_group_exercise(
     group_id: int,
     exercise_data: SessionExerciseCreate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Add an exercise to a session group."""
-    # Verify group exists
-    group_result = await db.execute(select(SessionGroup).where(SessionGroup.id == group_id))
-    if not group_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Session group not found",
-        )
+    await _verify_group_ownership(group_id, trainer_id, db)
 
-    # Override group_id from path parameter
     exercise_data.session_id = None
     exercise_data.session_group_id = group_id
 
-    # If using a template, increment usage count
     if exercise_data.exercise_template_id:
         template_result = await db.execute(
             select(ExerciseTemplate).where(
@@ -171,6 +168,7 @@ async def create_session_group_exercise(
 async def update_session_exercise(
     exercise_id: int,
     exercise_data: SessionExerciseUpdate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a session exercise."""
@@ -182,6 +180,12 @@ async def update_session_exercise(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session exercise not found",
         )
+
+    # Verify ownership through parent
+    if exercise.session_id:
+        await _verify_session_ownership(exercise.session_id, trainer_id, db)
+    elif exercise.session_group_id:
+        await _verify_group_ownership(exercise.session_group_id, trainer_id, db)
 
     update_data = exercise_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -195,6 +199,7 @@ async def update_session_exercise(
 @router.delete("/{exercise_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_session_exercise(
     exercise_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a session exercise."""
@@ -207,6 +212,11 @@ async def delete_session_exercise(
             detail="Session exercise not found",
         )
 
+    if exercise.session_id:
+        await _verify_session_ownership(exercise.session_id, trainer_id, db)
+    elif exercise.session_group_id:
+        await _verify_group_ownership(exercise.session_group_id, trainer_id, db)
+
     await db.delete(exercise)
     await db.flush()
 
@@ -217,20 +227,12 @@ async def delete_session_exercise(
 async def reorder_session_exercises(
     session_id: int,
     reorder_data: SessionExerciseReorderRequest,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Bulk reorder exercises for a session."""
-    # Verify session exists
-    session_result = await db.execute(
-        select(TrainingSession).where(TrainingSession.id == session_id)
-    )
-    if not session_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Training session not found",
-        )
+    await _verify_session_ownership(session_id, trainer_id, db)
 
-    # Update order_index for each exercise
     for index, exercise_id in enumerate(reorder_data.exercise_ids):
         result = await db.execute(
             select(SessionExercise).where(
@@ -243,7 +245,6 @@ async def reorder_session_exercises(
 
     await db.flush()
 
-    # Return updated list
     query = (
         select(SessionExercise)
         .where(SessionExercise.session_id == session_id)

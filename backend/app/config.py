@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     dev_auth_bypass: bool = False
     dev_trainer_id: int | None = None
 
+    # JWT Session Tokens
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_hours: int = 168  # 7 days
+
     class Config:
         # Make .env file optional to handle permission errors on macOS
         env_file = ".env"
@@ -74,6 +79,9 @@ def get_settings() -> Settings:
             google_client_secret: str | None = None
             dev_auth_bypass: bool = False
             dev_trainer_id: int | None = None
+            jwt_secret_key: str = "change-me-in-production"
+            jwt_algorithm: str = "HS256"
+            jwt_expire_hours: int = 168
 
             class Config:
                 case_sensitive = False

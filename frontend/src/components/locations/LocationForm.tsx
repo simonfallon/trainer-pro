@@ -72,7 +72,6 @@ export const LocationForm: React.FC<LocationFormProps> = ({
       } else {
         // Create new location
         await onSave({
-          trainer_id: trainerId,
           ...formData,
         } as LocationCreateInput);
       }

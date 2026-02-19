@@ -47,7 +47,6 @@ export default function DashboardHomePage() {
         // Found a scheduled session - start it
         await sessionsApi.startActive({
           session_id: currentSession.id,
-          trainer_id: app.trainer_id,
           client_ids: [currentSession.client_id],
           duration_minutes: currentSession.duration_minutes,
           location_id: currentSession.location_id || undefined,

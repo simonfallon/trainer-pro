@@ -66,7 +66,6 @@ export default function CalendarPage() {
       if (data.client_ids.length > 1) {
         // Multi-client session - create a session group
         await sessionsApi.createGroup({
-          trainer_id: app.trainer_id,
           client_ids: data.client_ids,
           location_id: data.location_id || undefined,
           scheduled_at: scheduledAtIso,
@@ -76,7 +75,6 @@ export default function CalendarPage() {
       } else {
         // Single client session - use existing endpoint
         await sessionsApi.create({
-          trainer_id: app.trainer_id,
           client_id: data.client_ids[0],
           location_id: data.location_id || undefined,
           scheduled_at: scheduledAtIso,

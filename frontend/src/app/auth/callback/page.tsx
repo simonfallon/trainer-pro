@@ -27,11 +27,8 @@ export default function AuthCallbackPage() {
           window.location.href = `/dashboard?app_id=${result.app_id}`;
         } else {
           setStatus("Cuenta creada. Configurando perfil...");
-          // Redirect to setup (home page with query params or special state)
-          // For now, simpler to redirect to home but we need to signal that we are logged in but incomplete.
-          // Ideally we'd store the trainer ID in a cookie or context.
-          // Since the current app is simple and URL-based, let's pass the trainer_id back to home
-          router.push(`/?trainer_id=${result.trainer_id}&new_user=true`);
+          // Cookie is already set by the backend. Redirect to onboarding.
+          router.push("/?new_user=true");
         }
       } catch (err) {
         console.error("Auth error:", err);

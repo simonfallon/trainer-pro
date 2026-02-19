@@ -2,10 +2,11 @@
 Locations API Router
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_utils import get_current_trainer_id
 from app.database import get_db
 from app.models.location import Location
 from app.schemas.location import LocationCreate, LocationResponse, LocationUpdate
@@ -13,12 +14,23 @@ from app.schemas.location import LocationCreate, LocationResponse, LocationUpdat
 router = APIRouter()
 
 
+async def _get_location_owned_by(location_id: int, trainer_id: int, db: AsyncSession) -> Location:
+    """Fetch a location and verify it belongs to the authenticated trainer."""
+    result = await db.execute(select(Location).where(Location.id == location_id))
+    location = result.scalar_one_or_none()
+    if not location:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Location not found")
+    if location.trainer_id != trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+    return location
+
+
 @router.get("", response_model=list[LocationResponse])
 async def list_locations(
-    trainer_id: int = Query(..., description="Trainer ID to filter locations"),
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all locations for a trainer."""
+    """List all locations for the authenticated trainer."""
     result = await db.execute(select(Location).where(Location.trainer_id == trainer_id))
     return result.scalars().all()
 
@@ -26,29 +38,22 @@ async def list_locations(
 @router.get("/{location_id}", response_model=LocationResponse)
 async def get_location(
     location_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a location by ID."""
-    result = await db.execute(select(Location).where(Location.id == location_id))
-    location = result.scalar_one_or_none()
-
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Location not found",
-        )
-
-    return location
+    return await _get_location_owned_by(location_id, trainer_id, db)
 
 
 @router.post("", response_model=LocationResponse, status_code=status.HTTP_201_CREATED)
 async def create_location(
     location_data: LocationCreate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new location."""
     location = Location(
-        trainer_id=location_data.trainer_id,
+        trainer_id=trainer_id,
         name=location_data.name,
         type=location_data.type.value,
         address_line1=location_data.address_line1,
@@ -71,17 +76,11 @@ async def create_location(
 async def update_location(
     location_id: int,
     location_data: LocationUpdate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a location."""
-    result = await db.execute(select(Location).where(Location.id == location_id))
-    location = result.scalar_one_or_none()
-
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Location not found",
-        )
+    location = await _get_location_owned_by(location_id, trainer_id, db)
 
     update_data = location_data.model_dump(exclude_unset=True)
     if "type" in update_data and update_data["type"]:
@@ -98,17 +97,10 @@ async def update_location(
 @router.delete("/{location_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_location(
     location_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a location."""
-    result = await db.execute(select(Location).where(Location.id == location_id))
-    location = result.scalar_one_or_none()
-
-    if not location:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Location not found",
-        )
-
+    location = await _get_location_owned_by(location_id, trainer_id, db)
     await db.delete(location)
     await db.flush()

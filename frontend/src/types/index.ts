@@ -196,17 +196,16 @@ export interface TrainerCreateInput {
   phone: string;
   email: string;
   logo_url?: string;
+  discipline_type?: string;
 }
 
 export interface AppCreateInput {
-  trainer_id: number;
   name: string;
   theme_id: string;
   theme_config: ThemeConfig;
 }
 
 export interface ClientCreateInput {
-  trainer_id: number;
   name: string;
   phone: string;
   email?: string;
@@ -221,7 +220,6 @@ export interface ClientCreateInput {
 }
 
 export interface SessionCreateInput {
-  trainer_id: number;
   client_id: number;
   location_id?: number;
   scheduled_at: string;
@@ -230,7 +228,6 @@ export interface SessionCreateInput {
 }
 
 export interface SessionGroupCreateInput {
-  trainer_id: number;
   client_ids: number[];
   location_id?: number;
   scheduled_at: string;
@@ -239,7 +236,6 @@ export interface SessionGroupCreateInput {
 }
 
 export interface LocationCreateInput {
-  trainer_id: number;
   name: string;
   type: LocationType;
   address_line1?: string;
@@ -291,7 +287,6 @@ export interface ActiveSession {
 
 export interface StartSessionRequest {
   session_id?: number;
-  trainer_id: number;
   client_ids: number[];
   duration_minutes: number;
   location_id?: number;

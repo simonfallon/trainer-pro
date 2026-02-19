@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { DashboardAppProvider } from "@/hooks/useDashboardApp";
@@ -10,6 +10,7 @@ import type { TrainerApp, Trainer } from "@/types";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const appId = searchParams.get("app_id");
   const [app, setApp] = useState<TrainerApp | null>(null);
@@ -40,7 +41,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
             }
           }
         })
-        .catch(console.error)
+        .catch(() => router.replace("/"))
         .finally(() => setLoading(false));
     } else {
       setLoading(false);

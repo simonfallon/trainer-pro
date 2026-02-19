@@ -55,7 +55,6 @@ export default function ClientsPage() {
 
     try {
       await clientsApi.create({
-        trainer_id: app.trainer_id,
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         email: formData.email.trim() || undefined,

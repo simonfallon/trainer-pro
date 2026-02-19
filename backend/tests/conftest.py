@@ -20,6 +20,7 @@ os.environ["DATABASE_URL"] = os.getenv(
     "TEST_DATABASE_URL", "postgresql+asyncpg://trainer:trainer_dev@localhost:5432/trainer_pro_test"
 )
 
+from app.auth_utils import get_current_trainer_id
 from app.database import Base, get_db
 from app.main import app
 from app.models import (
@@ -79,16 +80,22 @@ async def db_session(setup_database) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(
+    db_session: AsyncSession, test_trainer: Trainer
+) -> AsyncGenerator[AsyncClient, None]:
     """
     Provide an async HTTP client for testing API endpoints.
-    Uses the test database session.
+    Uses the test database session and authenticates as the test trainer.
     """
 
     async def override_get_db():
         yield db_session
 
+    async def override_get_current_trainer_id() -> int:
+        return test_trainer.id
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_trainer_id] = override_get_current_trainer_id
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

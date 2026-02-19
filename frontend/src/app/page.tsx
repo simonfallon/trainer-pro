@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { themes, Theme } from "@/themes";
-import { trainersApi, appsApi, uploadsApi, devAuthApi } from "@/lib/api";
+import { trainersApi, appsApi, uploadsApi, devAuthApi, authApi } from "@/lib/api";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -30,12 +30,19 @@ export default function HomePage() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const trainerId = searchParams.get("trainer_id");
     const isNewUser = searchParams.get("new_user") === "true";
 
-    if (trainerId && isNewUser) {
-      setCreatedTrainerId(Number(trainerId));
-      setStep(2); // Phone collection step
+    if (isNewUser) {
+      // Retrieve trainer identity from session cookie instead of URL param
+      authApi
+        .me()
+        .then((me) => {
+          setCreatedTrainerId(me.trainer_id);
+          setStep(2); // Phone collection step
+        })
+        .catch(() => {
+          // Not authenticated — stay on step 1
+        });
     }
   }, [searchParams]);
 
@@ -105,7 +112,6 @@ export default function HomePage() {
             };
 
       const app = await appsApi.create({
-        trainer_id: createdTrainerId,
         name: appName.trim(),
         theme_id: themeId,
         theme_config: themeConfig,

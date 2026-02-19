@@ -26,9 +26,7 @@ class ClientBase(BaseModel):
 
 
 class ClientCreate(ClientBase):
-    """Schema for creating a client."""
-
-    trainer_id: int
+    """Schema for creating a client. trainer_id is derived from the session token."""
 
 
 class ClientUpdate(BaseModel):

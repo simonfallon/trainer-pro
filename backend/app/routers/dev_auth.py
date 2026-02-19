@@ -5,10 +5,11 @@ SECURITY WARNING: This module MUST be disabled in production.
 Only use for E2E testing in development environments.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth_utils import COOKIE_NAME, create_session_token
 from app.config import get_settings
 from app.database import get_db
 from app.models.app import TrainerApp
@@ -18,8 +19,21 @@ router = APIRouter()
 settings = get_settings()
 
 
+def _set_session_cookie(response: Response, trainer_id: int) -> None:
+    """Helper to set the JWT session cookie on a dev auth response."""
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=create_session_token(trainer_id),
+        httponly=True,
+        secure=False,  # Set to True in production (HTTPS)
+        samesite="lax",
+        max_age=60 * 60 * 168,  # 7 days
+        path="/",
+    )
+
+
 @router.post("/dev/login")
-async def dev_login(db: AsyncSession = Depends(get_db)):
+async def dev_login(response: Response, db: AsyncSession = Depends(get_db)):
     """
     DEV ONLY: Bypass Google OAuth and return test trainer data.
 
@@ -49,6 +63,7 @@ async def dev_login(db: AsyncSession = Depends(get_db)):
     app_result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer.id))
     app = app_result.scalar_one_or_none()
 
+    _set_session_cookie(response, trainer.id)
     # Return same structure as Google OAuth exchange
     return {
         "trainer_id": trainer.id,
@@ -62,7 +77,7 @@ async def dev_login(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/dev/onboarding")
-async def dev_onboarding(db: AsyncSession = Depends(get_db)):
+async def dev_onboarding(response: Response, db: AsyncSession = Depends(get_db)):
     """
     DEV ONLY: Create/return a test trainer WITHOUT an app for testing onboarding flow.
 
@@ -100,6 +115,7 @@ async def dev_onboarding(db: AsyncSession = Depends(get_db)):
         trainer.logo_url = None
         await db.commit()
 
+    _set_session_cookie(response, trainer.id)
     # Return structure that triggers onboarding (Step 2)
     return {
         "trainer_id": trainer.id,
@@ -113,7 +129,9 @@ async def dev_onboarding(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/dev/login/{discipline}")
-async def dev_login_discipline(discipline: str, db: AsyncSession = Depends(get_db)):
+async def dev_login_discipline(
+    discipline: str, response: Response, db: AsyncSession = Depends(get_db)
+):
     """
     DEV ONLY: Login as specific discipline trainer (bmx or physio).
 
@@ -143,6 +161,7 @@ async def dev_login_discipline(discipline: str, db: AsyncSession = Depends(get_d
     app_result = await db.execute(select(TrainerApp).where(TrainerApp.trainer_id == trainer.id))
     app = app_result.scalar_one_or_none()
 
+    _set_session_cookie(response, trainer.id)
     # Return same structure as Google OAuth exchange
     return {
         "trainer_id": trainer.id,

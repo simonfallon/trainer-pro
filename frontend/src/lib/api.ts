@@ -8,12 +8,21 @@ const API_BASE = "/api";
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const response = await fetch(url, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,
     },
     ...options,
   });
+
+  if (response.status === 401) {
+    // Session missing or expired — redirect to login
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
+    throw new Error("No autenticado");
+  }
 
   if (!response.ok) {
     let errorDetail = "Error desconocido";
@@ -23,7 +32,9 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
     } catch (e) {
       errorDetail = `Error de API: ${response.status} ${response.statusText}`;
     }
-    console.error(`API Error [${endpoint}]:`, errorDetail);
+    if (response.status !== 403) {
+      console.error(`API Error [${endpoint}]:`, errorDetail);
+    }
     throw new Error(errorDetail);
   }
 
@@ -260,6 +271,16 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ code }),
     }),
+  me: () =>
+    fetchAPI<{
+      trainer_id: number;
+      email: string;
+      name: string;
+      has_app: boolean;
+      app_id?: number;
+      app_name?: string;
+    }>("/auth/me"),
+  logout: () => fetchAPI<{ detail: string }>("/auth/logout", { method: "POST" }),
 };
 
 // Dev Auth API (only for development)

@@ -44,7 +44,6 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
 
     try {
       await sessionsApi.startActive({
-        trainer_id: trainerId,
         client_ids: formData.client_ids,
         duration_minutes: formData.duration_minutes,
         location_id: formData.location_id ? parseInt(formData.location_id) : undefined,

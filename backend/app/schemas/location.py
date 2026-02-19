@@ -35,9 +35,7 @@ class LocationBase(BaseModel):
 
 
 class LocationCreate(LocationBase):
-    """Schema for creating a location."""
-
-    trainer_id: int
+    """Schema for creating a location. trainer_id is derived from the session token."""
 
 
 class LocationUpdate(BaseModel):

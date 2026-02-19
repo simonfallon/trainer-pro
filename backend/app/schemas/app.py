@@ -23,9 +23,7 @@ class AppBase(BaseModel):
 
 
 class AppCreate(AppBase):
-    """Schema for creating an app."""
-
-    trainer_id: int
+    """Schema for creating an app. trainer_id is derived from the session token."""
 
 
 class AppUpdate(BaseModel):

@@ -31,9 +31,7 @@ class SessionBase(BaseModel):
 
 
 class SessionCreate(SessionBase):
-    """Schema for creating a session."""
-
-    trainer_id: int
+    """Schema for creating a session. trainer_id is derived from the session token."""
 
 
 class SessionUpdate(BaseModel):
@@ -74,9 +72,8 @@ class SessionStats(BaseModel):
 
 
 class SessionGroupCreate(BaseModel):
-    """Schema for creating a session group with multiple clients."""
+    """Schema for creating a session group. trainer_id is derived from the session token."""
 
-    trainer_id: int
     client_ids: list[int] = Field(..., min_length=1)
     location_id: int | None = None
     scheduled_at: datetime
@@ -102,10 +99,9 @@ class SessionGroupResponse(BaseModel):
 
 
 class StartActiveSessionRequest(BaseModel):
-    """Schema for starting an active session."""
+    """Schema for starting an active session. trainer_id is derived from the session token."""
 
     session_id: int | None = None
-    trainer_id: int
     client_ids: list[int] = Field(..., min_length=1)
     duration_minutes: int = Field(default=60, ge=15, le=480)
     location_id: int | None = None

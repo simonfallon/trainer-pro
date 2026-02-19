@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.auth_utils import get_current_trainer_id
 from app.database import get_db
 from app.models.client import Client
 from app.models.payment import Payment
@@ -28,13 +29,29 @@ from app.schemas.session import SessionResponse
 router = APIRouter()
 
 
+async def _get_client_owned_by(client_id: int, trainer_id: int, db: AsyncSession) -> Client:
+    """Fetch a client and verify it belongs to the authenticated trainer."""
+    query = (
+        select(Client).where(Client.id == client_id).options(joinedload(Client.default_location))
+    )
+    result = await db.execute(query)
+    client = result.scalar_one_or_none()
+
+    if not client:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found")
+    if client.trainer_id != trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
+    return client
+
+
 @router.get("", response_model=list[ClientResponse])
 async def list_clients(
-    trainer_id: int = Query(..., description="Trainer ID to filter clients"),
+    trainer_id: int = Depends(get_current_trainer_id),
     include_deleted: bool = Query(False, description="Include soft-deleted clients"),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all clients for a trainer."""
+    """List all clients for the authenticated trainer."""
     query = (
         select(Client)
         .where(Client.trainer_id == trainer_id)
@@ -51,32 +68,22 @@ async def list_clients(
 @router.get("/{client_id}", response_model=ClientResponse)
 async def get_client(
     client_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a client by ID."""
-    query = (
-        select(Client).where(Client.id == client_id).options(joinedload(Client.default_location))
-    )
-    result = await db.execute(query)
-    client = result.scalar_one_or_none()
-
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
-
-    return client
+    return await _get_client_owned_by(client_id, trainer_id, db)
 
 
 @router.post("", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
 async def create_client(
     client_data: ClientCreate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new client."""
     client = Client(
-        trainer_id=client_data.trainer_id,
+        trainer_id=trainer_id,
         name=client_data.name,
         phone=client_data.phone,
         email=client_data.email,
@@ -102,17 +109,11 @@ async def create_client(
 async def update_client(
     client_id: int,
     client_data: ClientUpdate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Update a client."""
-    result = await db.execute(select(Client).where(Client.id == client_id))
-    client = result.scalar_one_or_none()
-
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    client = await _get_client_owned_by(client_id, trainer_id, db)
 
     update_data = client_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -130,18 +131,11 @@ async def update_client(
 @router.delete("/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_client(
     client_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Soft delete a client."""
-    result = await db.execute(select(Client).where(Client.id == client_id))
-    client = result.scalar_one_or_none()
-
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
-
+    client = await _get_client_owned_by(client_id, trainer_id, db)
     client.deleted_at = datetime.now(UTC)
     await db.flush()
 
@@ -149,16 +143,11 @@ async def delete_client(
 @router.get("/{client_id}/sessions", response_model=list[SessionResponse])
 async def get_client_sessions(
     client_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Get all training sessions for a specific client."""
-    # Verify client exists
-    client_result = await db.execute(select(Client).where(Client.id == client_id))
-    if not client_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    await _get_client_owned_by(client_id, trainer_id, db)
 
     # Get sessions ordered by date (most recent first)
     query = (
@@ -173,16 +162,11 @@ async def get_client_sessions(
 @router.get("/{client_id}/payment-balance", response_model=PaymentBalanceResponse)
 async def get_client_payment_balance(
     client_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Get payment balance summary for a client."""
-    # Verify client exists
-    client_result = await db.execute(select(Client).where(Client.id == client_id))
-    if not client_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    await _get_client_owned_by(client_id, trainer_id, db)
 
     # Count sessions (only completed and scheduled, not cancelled)
     sessions_query = select(TrainingSession).where(
@@ -197,7 +181,6 @@ async def get_client_payment_balance(
     unpaid_sessions = total_sessions - paid_sessions
 
     # Calculate prepaid balance from payments vs sessions
-    # Get total sessions paid through payment records
     payments_query = select(func.sum(Payment.sessions_paid)).where(Payment.client_id == client_id)
     payments_result = await db.execute(payments_query)
     total_paid_through_payments = payments_result.scalar() or 0
@@ -207,12 +190,6 @@ async def get_client_payment_balance(
     amount_result = await db.execute(amount_query)
     total_amount_paid_cop = amount_result.scalar() or 0
 
-    # Prepaid = sessions paid in payments - sessions marked as paid (that used those payments)
-    # Simple model: prepaid = paid_sessions - total_sessions if positive
-    prepaid_sessions = (
-        max(0, paid_sessions - total_sessions) if paid_sessions > total_sessions else 0
-    )
-    # More accurate: check payment records vs actual used sessions
     prepaid_sessions = max(0, total_paid_through_payments - total_sessions)
 
     return PaymentBalanceResponse(
@@ -231,21 +208,11 @@ async def get_client_payment_balance(
 async def register_client_payment(
     client_id: int,
     payment_data: PaymentCreate,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Register a bulk payment for a client.
-    This will also mark the oldest unpaid sessions as paid.
-    """
-    # Verify client exists and get trainer_id
-    client_result = await db.execute(select(Client).where(Client.id == client_id))
-    client = client_result.scalar_one_or_none()
-
-    if not client:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    """Register a bulk payment for a client."""
+    client = await _get_client_owned_by(client_id, trainer_id, db)
 
     # Create payment record
     payment = Payment(
@@ -287,25 +254,15 @@ async def register_client_payment(
 @router.get("/{client_id}/lap-times-by-location", response_model=list[LocationLapTimes])
 async def get_client_lap_times_by_location(
     client_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Get lap times aggregated by location for a BMX client.
-    Returns lap times grouped by training location/track.
-    """
+    """Get lap times aggregated by location for a BMX client."""
     from app.models.location import Location
     from app.models.session_exercise import SessionExercise
 
-    # Verify client exists
-    client_result = await db.execute(select(Client).where(Client.id == client_id))
-    if not client_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    await _get_client_owned_by(client_id, trainer_id, db)
 
-    # Get all lap time measurements for this client
-    # Join: training_sessions -> session_exercises where custom_name = "Toma de Tiempo BMX"
     query = (
         select(
             TrainingSession.location_id,
@@ -326,7 +283,6 @@ async def get_client_lap_times_by_location(
     result = await db.execute(query)
     rows = result.all()
 
-    # Aggregate by location, then by session
     location_map: dict[int | None, dict] = {}
 
     for row in rows:
@@ -344,7 +300,6 @@ async def get_client_lap_times_by_location(
                 "all_times": [],
             }
 
-        # Group by session
         if session_id not in location_map[location_id]["sessions"]:
             location_map[location_id]["sessions"][session_id] = {
                 "session_id": session_id,
@@ -352,18 +307,15 @@ async def get_client_lap_times_by_location(
                 "lap_times_ms": [],
             }
 
-        # Add lap times to this session
         location_map[location_id]["sessions"][session_id]["lap_times_ms"].extend(lap_times_ms)
         location_map[location_id]["all_times"].extend(lap_times_ms)
 
-    # Calculate aggregates for each location and session
     result_list = []
     for loc_data in location_map.values():
         all_times = loc_data["all_times"]
         if not all_times:
             continue
 
-        # Build session list with statistics
         sessions = []
         for session_data in loc_data["sessions"].values():
             session_times = session_data["lap_times_ms"]
@@ -379,7 +331,6 @@ async def get_client_lap_times_by_location(
                     )
                 )
 
-        # Sort sessions by date descending (newest first)
         sessions.sort(key=lambda s: s.recorded_at, reverse=True)
 
         result_list.append(
@@ -399,24 +350,15 @@ async def get_client_lap_times_by_location(
 @router.get("/{client_id}/exercise-history", response_model=ExerciseHistoryResponse)
 async def get_client_exercise_history(
     client_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
     exercise_name: str | None = Query(None, description="Filter by specific exercise name"),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Get exercise history for a physio client.
-    Returns all exercises done by the client with optional filtering by exercise name.
-    """
+    """Get exercise history for a physio client."""
     from app.models.session_exercise import SessionExercise
 
-    # Verify client exists
-    client_result = await db.execute(select(Client).where(Client.id == client_id))
-    if not client_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Client not found",
-        )
+    await _get_client_owned_by(client_id, trainer_id, db)
 
-    # Get all exercises for this client (excluding lap time measurements)
     query = (
         select(
             SessionExercise.custom_name,
@@ -433,14 +375,12 @@ async def get_client_exercise_history(
         .order_by(TrainingSession.scheduled_at.desc())
     )
 
-    # Apply exercise name filter if provided
     if exercise_name:
         query = query.where(SessionExercise.custom_name == exercise_name)
 
     result = await db.execute(query)
     rows = result.all()
 
-    # Collect unique exercise names and history entries
     exercises_set = set()
     history = []
 
