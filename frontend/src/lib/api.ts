@@ -74,6 +74,11 @@ export const appsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  update: (id: number, data: Partial<import("@/types").AppCreateInput>) =>
+    fetchAPI<import("@/types").TrainerApp>(`/apps/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 };
 
 // Locations API

@@ -6,6 +6,7 @@ import { sessionsApi, clientsApi, locationsApi } from "@/lib/api";
 import { getThemeById } from "@/themes";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
 import { StartSessionModal } from "@/components/session/StartSessionModal";
+import { EditAppConfigModal } from "@/components/dashboard/EditAppConfigModal";
 import type { SessionStats, Client, Location } from "@/types";
 
 export default function DashboardHomePage() {
@@ -14,6 +15,7 @@ export default function DashboardHomePage() {
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [startingSession, setStartingSession] = useState(false);
   const [showStartModal, setShowStartModal] = useState(false);
+  const [showEditConfigModal, setShowEditConfigModal] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
 
@@ -68,13 +70,63 @@ export default function DashboardHomePage() {
   return (
     <div className="fade-in">
       {/* Welcome section */}
-      <div style={{ marginBottom: "2rem" }}>
-        <h2 className="page-title">
-          ¡Bienvenido de nuevo{trainer ? `, ${trainer.name.split(" ")[0]}` : ""}!
-        </h2>
-        <p style={{ color: "var(--color-secondary)" }}>
-          Aquí tienes tu resumen de entrenamiento de este mes
-        </p>
+      <div
+        style={{
+          marginBottom: "2.5rem",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <h2 className="page-title" style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>
+            ¡Bienvenido de nuevo, {app.name}!
+          </h2>
+          <p style={{ color: "var(--color-secondary)", margin: 0, fontSize: "1.125rem" }}>
+            Aquí tienes tu resumen de entrenamiento de este mes
+          </p>
+        </div>
+        <div
+          style={{
+            flexShrink: 0,
+            marginLeft: "1.5rem",
+            marginTop: "-2.5rem",
+            marginBottom: "-2rem",
+          }}
+        >
+          {trainer?.logo_url ? (
+            <img
+              src={trainer.logo_url}
+              alt="Logo"
+              style={{
+                width: "200px",
+                height: "200px",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: "4px solid var(--color-background)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "120px",
+                height: "120px",
+                borderRadius: "50%",
+                background: `linear-gradient(135deg, ${app.theme_config.colors.primary} 0%, ${app.theme_config.colors.secondary} 100%)`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontWeight: "bold",
+                fontSize: "3rem",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+              }}
+            >
+              {app.name.charAt(0)}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Metrics Grid */}
@@ -99,7 +151,23 @@ export default function DashboardHomePage() {
 
       {/* App Info Card */}
       <div className="card" style={{ marginBottom: "2rem" }}>
-        <h3 style={{ marginBottom: "1rem" }}>Configuración de la Aplicación</h3>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
+        >
+          <h3 style={{ margin: 0 }}>Configuración de la Aplicación</h3>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowEditConfigModal(true)}
+            style={{ padding: "0.25rem 0.75rem", fontSize: "0.875rem" }}
+          >
+            Editar
+          </button>
+        </div>
         <div
           style={{
             display: "grid",
@@ -199,6 +267,19 @@ export default function DashboardHomePage() {
           clients={clients}
           locations={locations}
           onClose={() => setShowStartModal(false)}
+        />
+      )}
+
+      {/* Edit App Config Modal */}
+      {showEditConfigModal && trainer && (
+        <EditAppConfigModal
+          app={app}
+          trainer={trainer}
+          onClose={() => setShowEditConfigModal(false)}
+          onSuccess={() => {
+            setShowEditConfigModal(false);
+            window.location.reload();
+          }}
         />
       )}
     </div>

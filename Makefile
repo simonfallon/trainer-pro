@@ -51,7 +51,7 @@ test-backend: ## Run backend tests
 	cd backend && poetry run pytest -v --ignore=.env
 
 test-frontend: ## Run frontend tests
-	cd frontend && npm test
+	cd frontend && npm run test:agent
 
 # --- Code Quality ---
 

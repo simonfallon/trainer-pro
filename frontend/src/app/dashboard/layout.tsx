@@ -118,62 +118,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     <ThemeProvider initialThemeId={app.theme_id} initialTheme={themeConfig}>
       <DashboardAppProvider app={app} trainer={trainer}>
         <div style={{ minHeight: "100vh" }}>
-          {/* Header */}
-          <header
-            style={{
-              borderBottom: "1px solid #e1e5e9",
-              padding: "1rem 0",
-              backgroundColor: "var(--color-background)",
-            }}
-          >
-            <div
-              className="container"
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-            >
-              <h1 style={{ fontSize: "1.25rem", fontWeight: 700 }}>{app.name}</h1>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                }}
-              >
-                {trainer?.logo_url ? (
-                  <img
-                    src={trainer.logo_url}
-                    alt="Logo"
-                    style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "2px solid #e1e5e9",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: "64px",
-                      height: "64px",
-                      borderRadius: "50%",
-                      background: `linear-gradient(135deg, ${app.theme_config.colors.primary} 0%, ${app.theme_config.colors.secondary} 100%)`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "white",
-                      fontWeight: "bold",
-                      fontSize: "1.5rem",
-                    }}
-                  >
-                    {trainer?.name?.charAt(0) || app.name.charAt(0)}
-                  </div>
-                )}
-              </div>
-            </div>
-          </header>
-
           {/* Tab Navigation */}
-          <nav style={{ backgroundColor: "var(--color-background)" }}>
+          <nav style={{ backgroundColor: "var(--color-background)", paddingTop: "2rem" }}>
             <div className="container">
               <div className="tab-nav">
                 {tabs.map((tab) => (

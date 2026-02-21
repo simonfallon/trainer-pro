@@ -16,13 +16,24 @@ Integration tests validate API behavior using a real PostgreSQL database (`train
 
 ## Quick Reference: Running Tests
 
+> **IMPORTANT FOR AGENTS**: Always use `make` commands to run tests. Do not call `pytest` or `npm test` directly.
+
 ```bash
-cd backend
-poetry run pytest                               # Run all
-poetry run pytest tests/test_clients.py         # Run specific file
-poetry run pytest tests/file.py::Class::method  # Run specific test
-poetry run pytest -s -v                         # Verbose + stdout
-poetry run pytest -x --lf                       # Stop on fail, run last failed
+# Run all backend tests (primary command for agents)
+// turbo
+make test-backend
+
+# Run a specific test file (from backend/ directory)
+cd backend && poetry run pytest tests/test_clients.py -v
+
+# Run a specific test
+cd backend && poetry run pytest tests/file.py::Class::method -v
+
+# Run with verbose stdout output
+cd backend && poetry run pytest -s -v
+
+# Stop on first failure, re-run only last failed
+cd backend && poetry run pytest -x --lf
 ```
 
 ## Adding a New Test
@@ -74,4 +85,5 @@ class TestFeatureEndpoints:
 - [ ] Use fixtures (`client`, `test_trainer`, etc.)
 - [ ] Test happy path + error cases (404, 422)
 - [ ] Validate db persistence and response structure
-- [ ] Run `poetry run pytest tests/test_<feature>.py -v`
+// turbo
+- [ ] Run `make test-backend` to verify all tests pass
