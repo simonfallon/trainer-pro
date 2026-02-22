@@ -92,8 +92,12 @@ export default function CalendarPage() {
     mutate(sessionsKey);
   };
 
-  const handleDeleteSession = async (sessionId: number) => {
-    await sessionsApi.delete(sessionId);
+  const handleDeleteSession = async (session: TrainingSession) => {
+    if (session.session_group_id) {
+      await sessionsApi.deleteGroup(session.session_group_id);
+    } else {
+      await sessionsApi.delete(session.id);
+    }
     mutate(sessionsKey);
   };
 

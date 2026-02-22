@@ -55,13 +55,17 @@ npm run format    # Prettier
 ```
 
 ### Testing
-- **CRITICAL**: Always use `make` commands to run tests. Do not run `pytest` or `npm test` directly.
+- **CRITICAL FOR AGENTS**: You MUST ALWAYS use `make` commands to run tests. **NEVER** run `pytest`, `npm test`, or `vitest` directly, even when running specific files. The `make` commands are allowlisted for automatic execution.
+- To run specific tests, pass the `ARGS` variable.
+
 ```bash
 # Backend (pytest, requires PostgreSQL test DB)
 make test-backend
+make test-backend ARGS="tests/test_clients.py"
 
 # Frontend (Vitest)
 make test-frontend
+make test-frontend ARGS="-- src/components/ExerciseSetForm.test.tsx"
 ```
 
 ### Code Quality

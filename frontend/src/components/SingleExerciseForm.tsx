@@ -4,6 +4,8 @@ import { useState, useRef } from "react";
 import { useDarkStyles } from "@/hooks/useDarkStyles";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
 import { exerciseTemplatesApi, sessionsApi } from "@/lib/api";
+import { formatFieldName } from "@/lib/stringUtils";
+import { ExerciseAutocomplete } from "@/components/ExerciseAutocomplete";
 import type { ExerciseTemplate } from "@/types";
 
 interface SingleExerciseFormProps {
@@ -20,44 +22,11 @@ export function SingleExerciseForm({ sessionId, onSave, onCancel }: SingleExerci
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Autocomplete state
-  const [suggestions, setSuggestions] = useState<ExerciseTemplate[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<ExerciseTemplate | undefined>();
-  const searchTimeoutRef = useRef<NodeJS.Timeout>();
-
-  const handleNameChange = async (value: string) => {
-    setCustomName(value);
-
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // Don't search if query is too short
-    if (value.trim().length < 2) {
-      setSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    // Debounce search
-    searchTimeoutRef.current = setTimeout(async () => {
-      try {
-        const results = await exerciseTemplatesApi.autocomplete(app.id, value, 5);
-        setSuggestions(results);
-        setShowSuggestions(true);
-      } catch (err) {
-        console.error("Error fetching autocomplete suggestions:", err);
-      }
-    }, 300);
-  };
 
   const selectTemplate = (template: ExerciseTemplate) => {
     setCustomName(template.name);
     setSelectedTemplate(template);
-    setShowSuggestions(false);
-    setSuggestions([]);
     // Reset exercise data when template changes
     setExerciseData({});
   };
@@ -117,71 +86,14 @@ export function SingleExerciseForm({ sessionId, onSave, onCancel }: SingleExerci
           {/* Exercise Name with Autocomplete */}
           <div className="form-group">
             <label className="form-label">Nombre del Ejercicio</label>
-            <div style={{ position: "relative" }}>
-              <input
-                type="text"
-                className="form-input"
-                value={customName}
-                onChange={(e) => handleNameChange(e.target.value)}
-                onBlur={() => {
-                  // Delay hiding to allow click on suggestion
-                  setTimeout(() => {
-                    setShowSuggestions(false);
-                  }, 200);
-                }}
-                placeholder="Empieza a escribir para buscar ejercicios..."
-                required
-              />
-
-              {/* Autocomplete Dropdown */}
-              {showSuggestions && suggestions.length > 0 && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    right: 0,
-                    backgroundColor: theme.colors.background,
-                    border: `1px solid ${theme.colors.secondary}30`,
-                    borderRadius: "4px",
-                    marginTop: "0.25rem",
-                    maxHeight: "200px",
-                    overflowY: "auto",
-                    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                    zIndex: 1000,
-                  }}
-                >
-                  {suggestions.map((template) => (
-                    <div
-                      key={template.id}
-                      onClick={() => selectTemplate(template)}
-                      style={{
-                        padding: "0.75rem",
-                        cursor: "pointer",
-                        borderBottom: `1px solid ${theme.colors.secondary}20`,
-                        transition: "background-color 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = `${theme.colors.primary}10`;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: 600,
-                          color: theme.colors.text,
-                          fontSize: "0.875rem",
-                        }}
-                      >
-                        {template.name}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <ExerciseAutocomplete
+              appId={app.id}
+              value={customName}
+              onChange={(value) => setCustomName(value)}
+              onSelect={selectTemplate}
+              placeholder="Empieza a escribir para buscar ejercicios..."
+              required
+            />
             {!selectedTemplate && (
               <small
                 style={{
@@ -205,7 +117,7 @@ export function SingleExerciseForm({ sessionId, onSave, onCancel }: SingleExerci
                 .map(([fieldName, fieldDef]) => (
                   <div key={fieldName} className="form-group">
                     <label className="form-label">
-                      {fieldDef.label}
+                      {formatFieldName(fieldName, fieldDef.label)}
                       {fieldDef.required && <span style={{ color: "#dc3545" }}> *</span>}
                     </label>
                     {fieldDef.type === "text" ? (
@@ -213,7 +125,7 @@ export function SingleExerciseForm({ sessionId, onSave, onCancel }: SingleExerci
                         className="form-input"
                         value={exerciseData[fieldName] || ""}
                         onChange={(e) => updateExerciseData(fieldName, e.target.value)}
-                        placeholder={`Ingresa ${fieldDef.label.toLowerCase()}`}
+                        placeholder={`Ingresa ${formatFieldName(fieldName, fieldDef.label).toLowerCase()}`}
                         rows={2}
                         required={fieldDef.required}
                       />
@@ -239,7 +151,7 @@ export function SingleExerciseForm({ sessionId, onSave, onCancel }: SingleExerci
                               : e.target.value;
                           updateExerciseData(fieldName, value);
                         }}
-                        placeholder={`Ingresa ${fieldDef.label.toLowerCase()}`}
+                        placeholder={`Ingresa ${formatFieldName(fieldName, fieldDef.label).toLowerCase()}`}
                         step={fieldDef.type === "float" || fieldDef.type === "number" ? "0.1" : "1"}
                         required={fieldDef.required}
                       />

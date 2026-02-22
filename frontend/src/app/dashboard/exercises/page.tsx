@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import useSWR, { mutate } from "swr";
-import { exerciseTemplatesApi } from "@/lib/api";
+import { exerciseTemplatesApi, appsApi } from "@/lib/api";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
+import { formatFieldName, toSnakeCase } from "@/lib/stringUtils";
 import type {
   ExerciseTemplate,
   ExerciseTemplateCreateInput,
@@ -15,20 +16,22 @@ const DEFAULT_FIELDS = {
   physio: {
     repeticiones: { type: "number" as const, label: "Repeticiones", required: true },
     series: { type: "number" as const, label: "Series", required: true },
-    peso: { type: "number" as const, label: "Peso (kg)", required: false },
+    peso: { type: "number" as const, label: "Peso", required: false },
   },
   bmx: {
     runs: { type: "number" as const, label: "Runs", required: true },
-    duracion_total: { type: "duration" as const, label: "Duración Total", required: true },
+    duracion_total: { type: "duration" as const, label: "Duracion Total", required: true },
   },
 };
 
 type FieldType = "number" | "array" | "duration" | "text";
 
 interface FieldDefinition {
+  id: string;
+  name: string;
   type: FieldType;
-  label: string;
   required: boolean;
+  default_value?: any;
 }
 
 export default function ExercisesPage() {
@@ -38,6 +41,9 @@ export default function ExercisesPage() {
     exerciseTemplatesApi.list(app.id)
   );
 
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [configFields, setConfigFields] = useState<FieldDefinition[]>([]);
+  const [configSubmitting, setConfigSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<ExerciseTemplate | null>(null);
@@ -45,32 +51,50 @@ export default function ExercisesPage() {
   const [formData, setFormData] = useState({
     name: "",
   });
-  const [fields, setFields] = useState<Record<string, FieldDefinition>>({});
+  const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const getDefaultFields = (): Record<string, FieldDefinition> => {
-    const discipline = trainer?.discipline_type?.toLowerCase();
-    if (discipline === "physio" || discipline === "fisioterapia") {
-      return { ...DEFAULT_FIELDS.physio };
-    } else if (discipline === "bmx") {
-      return { ...DEFAULT_FIELDS.bmx };
+  const getDefaultFields = (): FieldDefinition[] => {
+    if (app.theme_config.default_exercise_schema) {
+      return Object.entries(app.theme_config.default_exercise_schema).map(
+        ([key, value]: [string, any]) => ({
+          id: Math.random().toString(36).substring(7),
+          name: value.label || key,
+          type: value.type,
+          required: value.required ?? false,
+          default_value: value.default_value,
+        })
+      );
     }
-    return {};
+
+    const discipline = trainer?.discipline_type?.toLowerCase();
+    let fieldsMap = {};
+    if (discipline === "physio" || discipline === "fisioterapia") {
+      fieldsMap = DEFAULT_FIELDS.physio;
+    } else if (discipline === "bmx") {
+      fieldsMap = DEFAULT_FIELDS.bmx;
+    }
+    return Object.entries(fieldsMap).map(([key, value]: [string, any]) => ({
+      id: Math.random().toString(36).substring(7),
+      name: value.label || key,
+      type: value.type,
+      required: value.required ?? false,
+    }));
   };
 
   const handleOpenForm = (exercise?: ExerciseTemplate) => {
     if (exercise) {
       setEditingExercise(exercise);
       setFormData({ name: exercise.name });
-      // Normalize old field types (integer/float) to 'number'
-      const normalizedFields: Record<string, FieldDefinition> = {};
-      Object.entries(exercise.field_schema || {}).forEach(([key, value]) => {
-        normalizedFields[key] = {
-          ...value,
-          type: ["integer", "float"].includes(value.type) ? "number" : (value.type as FieldType),
-        };
-      });
+      const normalizedFields = Object.entries(exercise.field_schema || {}).map(([key, value]) => ({
+        id: Math.random().toString(36).substring(7),
+        name: value.label || key,
+        type: ["integer", "float"].includes(value.type)
+          ? ("number" as FieldType)
+          : (value.type as FieldType),
+        required: value.required ?? false,
+      }));
       setFields(normalizedFields);
     } else {
       setEditingExercise(null);
@@ -85,7 +109,7 @@ export default function ExercisesPage() {
     setShowForm(false);
     setEditingExercise(null);
     setFormData({ name: "" });
-    setFields({});
+    setFields([]);
     setError("");
   };
 
@@ -95,41 +119,87 @@ export default function ExercisesPage() {
   };
 
   const handleAddField = () => {
-    const fieldKey = `campo_${Object.keys(fields).length + 1}`;
-    setFields({
+    setFields([
       ...fields,
-      [fieldKey]: { type: "number", label: "", required: false },
-    });
+      { id: Math.random().toString(36).substring(7), name: "", type: "number", required: false },
+    ]);
   };
 
-  const handleRemoveField = (fieldKey: string) => {
-    const newFields = { ...fields };
-    delete newFields[fieldKey];
-    setFields(newFields);
+  const handleRemoveField = (id: string) => {
+    setFields(fields.filter((f) => f.id !== id));
   };
 
-  const handleFieldChange = (fieldKey: string, property: keyof FieldDefinition, value: any) => {
-    setFields({
-      ...fields,
-      [fieldKey]: {
-        ...fields[fieldKey],
-        [property]: value,
-      },
-    });
+  const handleFieldChange = (id: string, property: keyof FieldDefinition, value: any) => {
+    if (property === "name") {
+      // Allow only lower and uppercase letters, and whitespaces
+      if (!/^[A-Za-zÀ-ÿ\s]*$/.test(value)) return;
+    }
+    setFields(fields.map((f) => (f.id === id ? { ...f, [property]: value } : f)));
   };
 
-  const handleFieldKeyChange = (oldKey: string, newKey: string) => {
-    if (oldKey === newKey || !newKey.trim()) return;
+  const handleOpenConfig = () => {
+    setConfigFields(getDefaultFields());
+    setShowConfigModal(true);
+    setError("");
+  };
 
-    const newFields: Record<string, FieldDefinition> = {};
-    Object.keys(fields).forEach((key) => {
-      if (key === oldKey) {
-        newFields[newKey] = fields[key];
-      } else {
-        newFields[key] = fields[key];
-      }
-    });
-    setFields(newFields);
+  const handleCloseConfig = () => {
+    setShowConfigModal(false);
+    setConfigFields([]);
+    setError("");
+  };
+
+  const handleAddConfigField = () => {
+    setConfigFields([
+      ...configFields,
+      { id: Math.random().toString(36).substring(7), name: "", type: "number", required: false },
+    ]);
+  };
+
+  const handleRemoveConfigField = (id: string) => {
+    setConfigFields(configFields.filter((f) => f.id !== id));
+  };
+
+  const handleConfigFieldChange = (id: string, property: keyof FieldDefinition, value: any) => {
+    if (property === "name") {
+      if (!/^[A-Za-zÀ-ÿ\s]*$/.test(value)) return;
+    }
+    setConfigFields(configFields.map((f) => (f.id === id ? { ...f, [property]: value } : f)));
+  };
+
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setConfigSubmitting(true);
+    setError("");
+
+    try {
+      const validFields: Record<string, any> = {};
+      configFields.forEach((field) => {
+        if (field.name.trim()) {
+          const internalKey = toSnakeCase(field.name);
+          validFields[internalKey] = {
+            type: field.type,
+            label: field.name.trim(),
+            required: field.required,
+            default_value: field.default_value !== "" ? field.default_value : undefined,
+          };
+        }
+      });
+
+      const updatedThemeConfig = {
+        ...app.theme_config,
+        default_exercise_schema: validFields,
+      };
+
+      await appsApi.update(app.id, { theme_config: updatedThemeConfig });
+
+      // Reload the page to reflect the new global schema gracefully
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error al guardar configuración");
+    } finally {
+      setConfigSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,11 +210,16 @@ export default function ExercisesPage() {
     setError("");
 
     try {
-      // Filter out fields with empty labels
-      const validFields: Record<string, FieldDefinition> = {};
-      Object.entries(fields).forEach(([key, value]) => {
-        if (value.label.trim()) {
-          validFields[key] = value;
+      // Filter out fields with empty labels and format internal keys
+      const validFields: Record<string, any> = {};
+      fields.forEach((field) => {
+        if (field.name.trim()) {
+          const internalKey = toSnakeCase(field.name);
+          validFields[internalKey] = {
+            type: field.type,
+            label: field.name.trim(), // Keep original label so we still display it
+            required: field.required,
+          };
         }
       });
 
@@ -192,10 +267,186 @@ export default function ExercisesPage() {
     <div className="fade-in">
       <div className="page-header">
         <h2 className="page-title">Ejercicios</h2>
-        <button className="btn btn-primary" onClick={() => handleOpenForm()}>
-          + Agregar Ejercicio
-        </button>
+        <div style={{ display: "flex", gap: "1rem" }}>
+          <button className="btn btn-secondary" onClick={handleOpenConfig}>
+            Configurar Valores por Defecto
+          </button>
+          <button className="btn btn-primary" onClick={() => handleOpenForm()}>
+            + Agregar Ejercicio
+          </button>
+        </div>
       </div>
+
+      {/* Config Defaults Modal */}
+      {showConfigModal && (
+        <div className="modal-overlay" onClick={handleCloseConfig}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "800px" }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Valores por Defecto de Ejercicios</h3>
+              <button className="modal-close" onClick={handleCloseConfig}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveConfig}>
+              <div className="form-group">
+                <p
+                  style={{
+                    color: "var(--color-secondary)",
+                    marginBottom: "1rem",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Aquí puedes configurar los detalles que tendrán por defecto todos tus nuevos
+                  ejercicios y qué valores autocompletarán al armar circuitos.
+                </p>
+                <div
+                  style={{
+                    border: "1px solid #e1e5e9",
+                    borderRadius: "8px",
+                    padding: "1rem",
+                    backgroundColor: "#f9fafb",
+                  }}
+                >
+                  {configFields.length === 0 ? (
+                    <p
+                      style={{
+                        color: "var(--color-secondary)",
+                        marginBottom: "1rem",
+                        textAlign: "center",
+                      }}
+                    >
+                      No hay detalles por defecto configurados
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                      {configFields.map((field) => (
+                        <div
+                          key={field.id}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr 1fr auto auto",
+                            gap: "0.5rem",
+                            alignItems: "center",
+                            padding: "0.75rem",
+                            backgroundColor: "white",
+                            borderRadius: "6px",
+                            border: "1px solid #e1e5e9",
+                          }}
+                        >
+                          <input
+                            type="text"
+                            className="form-input"
+                            value={field.name}
+                            onChange={(e) =>
+                              handleConfigFieldChange(field.id, "name", e.target.value)
+                            }
+                            placeholder="Nombre (ej. Serie)"
+                            style={{ fontSize: "0.875rem" }}
+                          />
+                          <select
+                            className="form-input"
+                            value={field.type}
+                            onChange={(e) =>
+                              handleConfigFieldChange(field.id, "type", e.target.value as FieldType)
+                            }
+                            style={{ fontSize: "0.875rem" }}
+                          >
+                            <option value="number">Número</option>
+                            <option value="array">Números</option>
+                            <option value="duration">Duración</option>
+                            <option value="text">Texto</option>
+                          </select>
+                          <input
+                            type={
+                              ["number", "integer", "float"].includes(field.type)
+                                ? "number"
+                                : "text"
+                            }
+                            className="form-input"
+                            value={field.default_value ?? ""}
+                            onChange={(e) => {
+                              const val = ["number", "integer", "float"].includes(field.type)
+                                ? e.target.value
+                                  ? Number(e.target.value)
+                                  : ""
+                                : e.target.value;
+                              handleConfigFieldChange(field.id, "default_value", val);
+                            }}
+                            placeholder="Valor Defecto"
+                            style={{ fontSize: "0.875rem" }}
+                          />
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                              fontSize: "0.875rem",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={field.required}
+                              onChange={(e) =>
+                                handleConfigFieldChange(field.id, "required", e.target.checked)
+                              }
+                            />
+                            Req.
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveConfigField(field.id)}
+                            style={{
+                              background: "none",
+                              border: "none",
+                              color: "#dc3545",
+                              cursor: "pointer",
+                              padding: "0.25rem",
+                              fontSize: "1.25rem",
+                            }}
+                            title="Eliminar campo"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleAddConfigField}
+                    className="btn btn-secondary"
+                    style={{ marginTop: "1rem", width: "100%" }}
+                  >
+                    + Agregar Detalle
+                  </button>
+                </div>
+              </div>
+
+              {error && <p style={{ color: "#dc3545", marginBottom: "1rem" }}>{error}</p>}
+
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCloseConfig}
+                  style={{ flex: 1 }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={configSubmitting}
+                  style={{ flex: 1 }}
+                >
+                  {configSubmitting ? "Guardando..." : "Guardar Valores"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Exercise Modal */}
       {showForm && (
@@ -236,7 +487,7 @@ export default function ExercisesPage() {
                     backgroundColor: "#f9fafb",
                   }}
                 >
-                  {Object.keys(fields).length === 0 ? (
+                  {fields.length === 0 ? (
                     <p
                       style={{
                         color: "var(--color-secondary)",
@@ -248,12 +499,12 @@ export default function ExercisesPage() {
                     </p>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                      {Object.entries(fields).map(([fieldKey, fieldDef]) => (
+                      {fields.map((field) => (
                         <div
-                          key={fieldKey}
+                          key={field.id}
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "1fr 1fr auto auto auto",
+                            gridTemplateColumns: "1fr 1fr auto auto",
                             gap: "0.5rem",
                             alignItems: "center",
                             padding: "0.75rem",
@@ -265,24 +516,16 @@ export default function ExercisesPage() {
                           <input
                             type="text"
                             className="form-input"
-                            value={fieldKey}
-                            onChange={(e) => handleFieldKeyChange(fieldKey, e.target.value)}
-                            placeholder="nombre_campo"
-                            style={{ fontSize: "0.875rem" }}
-                          />
-                          <input
-                            type="text"
-                            className="form-input"
-                            value={fieldDef.label}
-                            onChange={(e) => handleFieldChange(fieldKey, "label", e.target.value)}
-                            placeholder="Etiqueta"
+                            value={field.name}
+                            onChange={(e) => handleFieldChange(field.id, "name", e.target.value)}
+                            placeholder="Nombre (ej. Peso)"
                             style={{ fontSize: "0.875rem" }}
                           />
                           <select
                             className="form-input"
-                            value={fieldDef.type}
+                            value={field.type}
                             onChange={(e) =>
-                              handleFieldChange(fieldKey, "type", e.target.value as FieldType)
+                              handleFieldChange(field.id, "type", e.target.value as FieldType)
                             }
                             style={{ fontSize: "0.875rem", width: "120px" }}
                           >
@@ -301,16 +544,16 @@ export default function ExercisesPage() {
                           >
                             <input
                               type="checkbox"
-                              checked={fieldDef.required}
+                              checked={field.required}
                               onChange={(e) =>
-                                handleFieldChange(fieldKey, "required", e.target.checked)
+                                handleFieldChange(field.id, "required", e.target.checked)
                               }
                             />
                             Requerido
                           </label>
                           <button
                             type="button"
-                            onClick={() => handleRemoveField(fieldKey)}
+                            onClick={() => handleRemoveField(field.id)}
                             style={{
                               background: "none",
                               border: "none",
@@ -405,7 +648,7 @@ export default function ExercisesPage() {
                   <tbody>
                     {Object.entries(selectedExercise.field_schema).map(([key, def]) => (
                       <tr key={key}>
-                        <td>{def.label}</td>
+                        <td>{formatFieldName(key, def.label)}</td>
                         <td>
                           <span
                             style={{

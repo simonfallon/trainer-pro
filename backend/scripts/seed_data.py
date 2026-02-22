@@ -370,7 +370,7 @@ async def seed_data():
                 "field_schema": {
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
-                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "peso": {"type": "float", "label": "Peso kg", "required": False},
                 },
             },
             {
@@ -379,7 +379,7 @@ async def seed_data():
                 "field_schema": {
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
-                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "peso": {"type": "float", "label": "Peso kg", "required": False},
                 },
             },
             {
@@ -388,7 +388,7 @@ async def seed_data():
                 "field_schema": {
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
-                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "peso": {"type": "float", "label": "Peso kg", "required": False},
                 },
             },
             {

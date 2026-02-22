@@ -12,6 +12,7 @@ class ThemeConfig(BaseModel):
 
     colors: dict[str, str]
     fonts: dict[str, str]
+    default_exercise_schema: dict[str, dict] | None = None
 
 
 class AppBase(BaseModel):

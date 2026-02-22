@@ -171,6 +171,9 @@ export const sessionsApi = {
       body: JSON.stringify(data),
     }),
   delete: (id: number) => fetchAPI<void>(`/sessions/${id}`, { method: "DELETE" }),
+  // Delete group
+  deleteGroup: (groupId: number) =>
+    fetchAPI<void>(`/sessions/groups/${groupId}`, { method: "DELETE" }),
   // Toggle payment status
   togglePayment: (id: number) =>
     fetchAPI<import("@/types").TrainingSession>(`/sessions/${id}/payment`, {

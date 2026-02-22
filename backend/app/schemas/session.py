@@ -40,6 +40,7 @@ class SessionUpdate(BaseModel):
     client_id: int | None = None
     location_id: int | None = None
     scheduled_at: datetime | None = None
+    started_at: datetime | None = None
     duration_minutes: int | None = Field(None, ge=15, le=480)
     notes: str | None = None
     status: SessionStatus | None = None

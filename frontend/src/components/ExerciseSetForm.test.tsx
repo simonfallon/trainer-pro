@@ -50,8 +50,8 @@ describe("ExerciseSetForm - Autocomplete", () => {
       name: "Peso muerto",
       discipline_type: "physio",
       field_schema: {
-        repeticiones: { type: "integer", label: "Repeticiones", required: true },
-        series: { type: "integer", label: "Series", required: true },
+        repeticiones: { type: "integer", label: "Repeticiones", required: true, default_value: 12 },
+        series: { type: "integer", label: "Series", required: true, default_value: 4 },
       },
       usage_count: 10,
       created_at: "2024-01-01T00:00:00Z",
@@ -251,5 +251,46 @@ describe("ExerciseSetForm - Autocomplete", () => {
     expect(input).toBeInTheDocument();
 
     consoleSpy.mockRestore();
+  });
+
+  it("should prefill values and series when a template with default values is selected", async () => {
+    const mockAutocomplete = vi.mocked(exerciseTemplatesApi.autocomplete);
+    mockAutocomplete.mockResolvedValue(mockTemplates);
+
+    render(<ExerciseSetForm sessionId={sessionId} onSave={mockOnSave} onCancel={mockOnCancel} />);
+
+    // Check initial series is 3 (default)
+    const seriesInput = screen.getByLabelText("Número de Series") as HTMLInputElement;
+    expect(seriesInput.value).toBe("3");
+
+    // Add an exercise
+    const addButton = screen.getByText("+ Agregar Ejercicio");
+    fireEvent.click(addButton);
+
+    // Type in the exercise name input
+    const input = screen.getByPlaceholderText(
+      /empieza a escribir para buscar/i
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Peso" } });
+
+    // Wait for suggestions and select
+    await waitFor(
+      () => {
+        expect(screen.getByText("Peso muerto")).toBeInTheDocument();
+      },
+      { timeout: 1000 }
+    );
+
+    const suggestion = screen.getByText("Peso muerto");
+    fireEvent.click(suggestion);
+
+    // Verify 'Series' was updated to default_value 4
+    await waitFor(() => {
+      expect(seriesInput.value).toBe("4");
+    });
+
+    // Verify 'Repeticiones' input is rendered and pre-filled with 12
+    const repsInput = screen.getByPlaceholderText(/ingresa repeticiones/i) as HTMLInputElement;
+    expect(repsInput.value).toBe("12");
   });
 });

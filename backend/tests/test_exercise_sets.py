@@ -16,7 +16,7 @@ async def test_create_exercise_set_for_session(client: AsyncClient, test_session
         "discipline_type": "physio",
         "field_schema": {
             "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
-            "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+            "peso": {"type": "float", "label": "Peso kg", "required": False},
         },
     }
     template1_resp = await client.post("/exercise-templates", json=template1_data)

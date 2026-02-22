@@ -7,12 +7,13 @@ import { getThemeById } from "@/themes";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
 import { StartSessionModal } from "@/components/session/StartSessionModal";
 import { EditAppConfigModal } from "@/components/dashboard/EditAppConfigModal";
-import type { SessionStats, Client, Location } from "@/types";
+import type { SessionStats, Client, Location, TrainingSession, SessionGroup } from "@/types";
 
 export default function DashboardHomePage() {
   const { app, trainer } = useDashboardApp();
   const router = useRouter();
   const [stats, setStats] = useState<SessionStats | null>(null);
+  const [activeSession, setActiveSession] = useState<TrainingSession | SessionGroup | null>(null);
   const [startingSession, setStartingSession] = useState(false);
   const [showStartModal, setShowStartModal] = useState(false);
   const [showEditConfigModal, setShowEditConfigModal] = useState(false);
@@ -30,6 +31,9 @@ export default function DashboardHomePage() {
       .then(setStats)
       .catch(console.error);
 
+    // Fetch active session
+    sessionsApi.getActive(app.trainer_id).then(setActiveSession).catch(console.error);
+
     // Fetch clients and locations for StartSessionModal
     Promise.all([clientsApi.list(app.trainer_id), locationsApi.list(app.trainer_id)])
       .then(([c, l]) => {
@@ -42,6 +46,25 @@ export default function DashboardHomePage() {
   const handleStartSession = async () => {
     setStartingSession(true);
     try {
+      if (activeSession) {
+        const confirmed = window.confirm(
+          "Ya tienes una sesión activa. ¿Deseas finalizar la sesión actual y comenzar una nueva?"
+        );
+        if (!confirmed) {
+          setStartingSession(false);
+          return;
+        }
+        // Finish existing active session
+        if ("sessions" in activeSession) {
+          for (const s of activeSession.sessions) {
+            await sessionsApi.update(s.id, { status: "completed" });
+          }
+        } else {
+          await sessionsApi.update(activeSession.id, { status: "completed" });
+        }
+        setActiveSession(null);
+      }
+
       // Check for scheduled session within ±15 minutes
       const currentSession = await sessionsApi.getCurrent(app.trainer_id, 15);
 
@@ -237,6 +260,32 @@ export default function DashboardHomePage() {
           </div>
         </div>
       </div>
+
+      {/* Active Session Card */}
+      {activeSession && (
+        <div
+          className="card"
+          style={{ marginBottom: "2rem", borderLeft: "4px solid var(--color-primary)" }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <h3 style={{ margin: 0, marginBottom: "0.5rem" }}>Tienes una sesión en curso</h3>
+              <p style={{ margin: 0, color: "var(--color-secondary)", fontSize: "0.875rem" }}>
+                Hay una sesión activa iniciada a las{" "}
+                {new Date(
+                  "started_at" in activeSession && activeSession.started_at
+                    ? activeSession.started_at
+                    : activeSession.scheduled_at
+                ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                .
+              </p>
+            </div>
+            <a href={`/dashboard/session/active?app_id=${app.id}`} className="btn btn-primary">
+              Continuar Sesión
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="card">

@@ -37,27 +37,24 @@ The test environment is configured in `vitest.config.ts`:
 
 ## Running Tests
 
-### Run All Tests
+### Run Tests (Agent Standard)
+
+> **CRITICAL FOR AGENTS**: You MUST use the `make test-frontend` command from the root directory to run tests. **NEVER** run `vitest` or `npm run test:agent` directly. This is because the user has allowlisted the `make` commands to run automatically.
 
 ```bash
+# Run all frontend tests
 // turbo
 make test-frontend
-```
 
-Or, if you're already inside the `frontend/` directory:
-
-```bash
+# Run specific test files (Recommended for targeted changes/mid-feature checks)
 // turbo
-npm run test:agent
+make test-frontend ARGS="-- src/app/dashboard/exercises/page.test.tsx"
 ```
 
-Both use a custom temp directory to avoid system permission issues.
-
-### Other Commands
+### Other Local Commands (For User)
 
 ```bash
 npm run test                                                     # Watch mode (development)
-npx vitest run src/components/calendar/CalendarView.test.tsx    # Specific file
 npx vitest run --coverage                                        # With coverage
 npx vitest run --reporter=verbose                                # Verbose output
 ```
@@ -318,31 +315,27 @@ it('displays data when loaded', () => {
 
 ## Quick Reference
 
-> **IMPORTANT FOR AGENTS**: Always use `make test-frontend` from the project root. Do not call `vitest` or `npm test` directly.
+> **IMPORTANT FOR AGENTS**: You MUST use `make test-frontend` from the project root. Do not call `vitest` or `npm test` directly.
 
 ```bash
-# Run all tests — canonical command for agents (from project root)
+# Run all tests — canonical command for agents
 // turbo
 make test-frontend
 
-# Alternative: run from inside frontend/ directory
+# Run specific test files
 // turbo
-npm run test:agent
+make test-frontend ARGS="-- src/components/MyComponent.test.tsx"
 
 # Run tests in watch mode (local development only)
 cd frontend && npm run test
 
-# Run specific test file
-cd frontend && npx vitest run src/components/MyComponent.test.tsx
-
 # Run with coverage
-cd frontend && npx vitest run --coverage
+// turbo
+make test-frontend ARGS="--coverage"
 
 # Debug tests (verbose output)
-cd frontend && npx vitest run --reporter=verbose
-
-# Run tests matching pattern
-cd frontend && npx vitest run -t "should display"
+// turbo
+make test-frontend ARGS="--reporter=verbose"
 ```
 
 ---

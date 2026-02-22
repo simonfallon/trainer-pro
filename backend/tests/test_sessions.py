@@ -102,6 +102,45 @@ class TestSessionEndpoints:
         data = get_response.json()
         assert data["status"] == "cancelled"
 
+    async def test_delete_session_group_cancels_all_sessions(
+        self,
+        client: AsyncClient,
+        test_trainer: Trainer,
+        test_client_record: Client,
+    ):
+        """Test that deleting a session group cancels all sessions within it."""
+        from datetime import datetime, timedelta
+
+        other_client_data = {
+            "trainer_id": test_trainer.id,
+            "name": "Second Client",
+            "phone": "5555555556",
+        }
+        resp = await client.post("/clients", json=other_client_data)
+        other_client_id = resp.json()["id"]
+
+        group_data = {
+            "trainer_id": test_trainer.id,
+            "client_ids": [test_client_record.id, other_client_id],
+            "scheduled_at": (datetime.now() + timedelta(days=2)).isoformat(),
+            "duration_minutes": 60,
+        }
+        resp = await client.post("/sessions/group", json=group_data)
+        assert resp.status_code == 201
+        group = resp.json()
+        group_id = group["id"]
+
+        assert len(group["sessions"]) == 2
+        session_ids = [s["id"] for s in group["sessions"]]
+
+        delete_resp = await client.delete(f"/sessions/groups/{group_id}")
+        assert delete_resp.status_code == 204
+
+        for sid in session_ids:
+            get_resp = await client.get(f"/sessions/{sid}")
+            assert get_resp.status_code == 200
+            assert get_resp.json()["status"] == "cancelled"
+
     async def test_list_sessions_filter_by_client(
         self,
         client: AsyncClient,
@@ -152,3 +191,49 @@ class TestSessionEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert all(s["client_id"] == other_client_id for s in data)
+
+    async def test_active_session_group_priority(
+        self,
+        client: AsyncClient,
+        test_trainer: Trainer,
+        test_client_record: Client,
+        test_session: TrainingSession,
+    ):
+        """Test that get_active_session correctly returns the most recently started session, bypassing old individuals if a new group was started."""
+        # 1. Start an old individual session and leave it in progress
+        from datetime import UTC, datetime, timedelta
+
+        old_time = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
+        await client.put(
+            f"/sessions/{test_session.id}",
+            json={"status": "in_progress", "started_at": old_time},
+        )
+
+        # 2. Add another client
+        other_client_data = {
+            "trainer_id": test_trainer.id,
+            "name": "Other Client",
+            "phone": "5555555555",
+        }
+        resp = await client.post("/clients", json=other_client_data)
+        other_client_id = resp.json()["id"]
+
+        # 3. Create a new active group session containing both clients
+        start_resp = await client.post(
+            "/sessions/active/start",
+            json={
+                "client_ids": [test_client_record.id, other_client_id],
+                "duration_minutes": 60,
+                "notes": "Group session!",
+            },
+        )
+        assert start_resp.status_code == 201
+
+        # 4. Fetch the active session, it should be the new group session (which has 'sessions')
+        active_resp = await client.get("/sessions/active")
+        assert active_resp.status_code == 200
+        active_data = active_resp.json()
+
+        assert "sessions" in active_data
+        assert len(active_data["sessions"]) == 2
+        assert active_data["notes"] == "Group session!"

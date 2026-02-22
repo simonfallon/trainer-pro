@@ -63,6 +63,9 @@ vi.mock("@/lib/api", () => ({
     update: (...args: any[]) => mockUpdate(...args),
     delete: (...args: any[]) => mockDelete(...args),
   },
+  appsApi: {
+    update: vi.fn(),
+  },
 }));
 
 // SWR
@@ -180,8 +183,8 @@ describe("ExercisesPage", () => {
     expect(screen.getByLabelText("Nombre *")).toBeInTheDocument();
 
     // Should have default BMX fields
-    expect(screen.getByDisplayValue("runs")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("duracion_total")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Runs")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Duracion Total")).toBeInTheDocument();
   });
 
   // 7. Can add a new field
@@ -193,7 +196,10 @@ describe("ExercisesPage", () => {
     const addFieldButton = screen.getByText("+ Agregar Detalle");
     fireEvent.click(addFieldButton);
 
-    expect(screen.getByDisplayValue("campo_3")).toBeInTheDocument();
+    // Expecting 3 fields now (2 default BMX + 1 new)
+    const inputs = screen.getAllByPlaceholderText("Nombre (ej. Peso)");
+    expect(inputs.length).toBe(3);
+    expect(inputs[2]).toHaveValue("");
   });
 
   // 8. Can remove a field
@@ -231,7 +237,7 @@ describe("ExercisesPage", () => {
         discipline_type: "BMX",
         field_schema: {
           runs: { type: "number", label: "Runs", required: true },
-          duracion_total: { type: "duration", label: "Duración Total", required: true },
+          duracion_total: { type: "duration", label: "Duracion Total", required: true },
         },
       });
     });
@@ -253,8 +259,8 @@ describe("ExercisesPage", () => {
     const nameInput = screen.getByLabelText("Nombre *") as HTMLInputElement;
     expect(nameInput.value).toBe("Sentadillas");
 
-    expect(screen.getByDisplayValue("repeticiones")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("series")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Repeticiones")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Series")).toBeInTheDocument();
   });
 
   // 11. Updates exercise
@@ -327,9 +333,47 @@ describe("ExercisesPage", () => {
         field_schema: {
           // Only the default fields with labels should be saved
           runs: { type: "number", label: "Runs", required: true },
-          duracion_total: { type: "duration", label: "Duración Total", required: true },
+          duracion_total: { type: "duration", label: "Duracion Total", required: true },
         },
       });
+    });
+  });
+
+  // 14. Custom configuration
+  it("abre el modal de Configurar Valores por Defecto y puede guardarlos", async () => {
+    const appsApi = await import("@/lib/api");
+    const mockAppUpdate = vi.mocked(appsApi.appsApi.update).mockResolvedValue({} as any);
+
+    render(<ExercisesPage />);
+
+    // Open Config Modal
+    fireEvent.click(screen.getByText("Configurar Valores por Defecto"));
+
+    expect(screen.getByText("Valores por Defecto de Ejercicios")).toBeInTheDocument();
+
+    // Add Field
+    fireEvent.click(screen.getByText("+ Agregar Detalle"));
+
+    // Fill Field
+    const inputs = screen.getAllByPlaceholderText("Nombre (ej. Serie)");
+    fireEvent.change(inputs[inputs.length - 1], { target: { value: "Altura" } });
+
+    // Submit Config
+    fireEvent.click(screen.getByText("Guardar Valores"));
+
+    await waitFor(() => {
+      expect(mockAppUpdate).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({
+          theme_config: expect.objectContaining({
+            default_exercise_schema: expect.objectContaining({
+              altura: expect.objectContaining({
+                label: "Altura",
+              }),
+            }),
+          }),
+        })
+      );
     });
   });
 });

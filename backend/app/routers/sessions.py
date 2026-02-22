@@ -220,29 +220,30 @@ async def get_active_session(
     db: AsyncSession = Depends(get_db),
 ):
     """Get current active session for the authenticated trainer."""
+    # Find the most recently started session that is IN_PROGRESS
     result = await db.execute(
         select(TrainingSession)
         .where(TrainingSession.trainer_id == trainer_id)
         .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
-        .where(TrainingSession.session_group_id.is_(None))
-        .order_by(TrainingSession.started_at.desc())
+        .order_by(TrainingSession.started_at.desc().nulls_last())
+        .limit(1)
     )
-    session = result.scalars().first()
+    most_recent_session = result.scalars().first()
 
-    if session:
-        return session
+    if not most_recent_session:
+        return None
 
-    result = await db.execute(
-        select(SessionGroup)
-        .options(selectinload(SessionGroup.sessions))
-        .join(TrainingSession, SessionGroup.id == TrainingSession.session_group_id)
-        .where(SessionGroup.trainer_id == trainer_id)
-        .where(TrainingSession.status == SessionStatus.IN_PROGRESS.value)
-        .order_by(SessionGroup.scheduled_at.desc())
-        .distinct()
-    )
+    # If the most recent session is part of a group, return the group
+    if most_recent_session.session_group_id:
+        result = await db.execute(
+            select(SessionGroup)
+            .options(selectinload(SessionGroup.sessions))
+            .where(SessionGroup.id == most_recent_session.session_group_id)
+        )
+        return result.scalars().first()
 
-    return result.scalars().first()
+    # Otherwise return the individual session
+    return most_recent_session
 
 
 @router.get("/{session_id}", response_model=SessionResponse)
@@ -392,6 +393,33 @@ async def list_session_groups(
     query = query.order_by(SessionGroup.scheduled_at)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.delete("/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session_group(
+    group_id: int,
+    trainer_id: int = Depends(get_current_trainer_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel all sessions in a session group (soft delete)."""
+    from fastapi import HTTPException
+
+    result = await db.execute(
+        select(SessionGroup)
+        .options(selectinload(SessionGroup.sessions))
+        .where(SessionGroup.id == group_id)
+    )
+    group = result.scalar_one_or_none()
+
+    if not group:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    if group.trainer_id != trainer_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
+
+    for session in group.sessions:
+        session.status = SessionStatus.CANCELLED.value
+
+    await db.flush()
 
 
 @router.patch("/{session_id}/client-notes", response_model=SessionResponse)

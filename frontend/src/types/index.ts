@@ -35,6 +35,15 @@ export interface ThemeConfig {
     heading: string;
     body: string;
   };
+  default_exercise_schema?: Record<
+    string,
+    {
+      type: "number" | "array" | "duration" | "text" | "float" | "integer";
+      label: string;
+      required: boolean;
+      default_value?: any;
+    }
+  >;
 }
 
 // Lap Times by Location
@@ -183,6 +192,7 @@ export interface ExerciseTemplate {
       type: "number" | "array" | "integer" | "float" | "duration" | "text"; // integer/float for backward compatibility
       label: string;
       required: boolean;
+      default_value?: any;
     }
   >;
   usage_count: number;
@@ -259,6 +269,7 @@ export interface ExerciseTemplateCreateInput {
       type: "number" | "array" | "duration" | "text";
       label: string;
       required: boolean;
+      default_value?: any;
     }
   >;
 }
@@ -272,6 +283,7 @@ export interface ExerciseTemplateUpdateInput {
       type: "number" | "array" | "duration" | "text";
       label: string;
       required: boolean;
+      default_value?: any;
     }
   >;
 }
@@ -350,6 +362,7 @@ export interface PendingCustomExercise {
       type: "number" | "array" | "duration" | "text";
       label: string;
       required: boolean;
+      default_value?: any;
     }
   >;
 }

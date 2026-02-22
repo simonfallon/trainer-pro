@@ -20,7 +20,7 @@ interface SessionModalProps {
   onClose: () => void;
   onSave: (data: any) => Promise<void>;
   onStatusChange: (sessionId: number, status: string) => Promise<void>;
-  onDelete: (sessionId: number) => Promise<void>;
+  onDelete: (session: TrainingSession) => Promise<void>;
 }
 
 export const SessionModal: React.FC<SessionModalProps> = ({
@@ -107,7 +107,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
     if (!session) return;
     if (!window.confirm("¿Eliminar esta sesión? Esta acción no se puede deshacer.")) return;
     try {
-      await onDelete(session.id);
+      await onDelete(session);
       onClose();
     } catch (err) {
       setError("Error al eliminar la sesión");

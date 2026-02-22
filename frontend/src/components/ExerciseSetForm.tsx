@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useDarkStyles } from "@/hooks/useDarkStyles";
 import { useDashboardApp } from "@/hooks/useDashboardApp";
 import { exerciseTemplatesApi } from "@/lib/api";
+import { formatFieldName } from "@/lib/stringUtils";
+import { ExerciseAutocomplete } from "@/components/ExerciseAutocomplete";
 import type { ExerciseSet, ExerciseInSetInput, ExerciseTemplate } from "@/types";
 
 interface ExerciseSetFormProps {
@@ -26,7 +28,12 @@ export function ExerciseSetForm({
   const { theme, darkStyles } = useDarkStyles();
   const { app } = useDashboardApp();
   const [name, setName] = useState(existingSet?.name || "");
-  const [series, setSeries] = useState(existingSet?.series || 3);
+  const [series, setSeries] = useState<number | "">(
+    existingSet?.series ??
+      (app?.theme_config?.default_exercise_schema?.["series"]?.default_value !== undefined
+        ? Number(app.theme_config.default_exercise_schema["series"].default_value)
+        : 3)
+  );
   const [exercises, setExercises] = useState<ExerciseInSetInput[]>(
     existingSet?.exercises.map((ex) => ({
       exercise_template_id: ex.exercise_template_id ?? undefined,
@@ -39,14 +46,41 @@ export function ExerciseSetForm({
   const [error, setError] = useState("");
 
   // Autocomplete state
-  const [searchQuery, setSearchQuery] = useState<{ [key: number]: string }>({});
-  const [suggestions, setSuggestions] = useState<{ [key: number]: ExerciseTemplate[] }>({});
-  const [showSuggestions, setShowSuggestions] = useState<{ [key: number]: boolean }>({});
-  const [selectedIndex, setSelectedIndex] = useState<{ [key: number]: number }>({});
   const [selectedTemplates, setSelectedTemplates] = useState<{
     [key: number]: ExerciseTemplate | undefined;
   }>({});
-  const searchTimeoutRef = useRef<{ [key: number]: NodeJS.Timeout }>({});
+
+  // Hydrate selectedTemplates for existing sets
+  useEffect(() => {
+    if (existingSet?.exercises && existingSet.exercises.length > 0 && app?.id) {
+      const fetchTemplates = async () => {
+        try {
+          // Fetch all templates for the current app
+          const templates = await exerciseTemplatesApi.list(app.id);
+          const templateMap = templates.reduce(
+            (acc, t) => {
+              acc[t.id] = t;
+              return acc;
+            },
+            {} as Record<number, ExerciseTemplate>
+          );
+
+          const newSelectedTemplates: Record<number, ExerciseTemplate> = {};
+          existingSet.exercises.forEach((ex, index) => {
+            if (ex.exercise_template_id && templateMap[ex.exercise_template_id]) {
+              newSelectedTemplates[index] = templateMap[ex.exercise_template_id];
+            }
+          });
+
+          setSelectedTemplates((prev) => ({ ...prev, ...newSelectedTemplates }));
+        } catch (err) {
+          console.error("Error fetching templates for existing set:", err);
+        }
+      };
+
+      fetchTemplates();
+    }
+  }, [existingSet, app?.id]);
 
   const addExercise = () => {
     setExercises([
@@ -69,38 +103,39 @@ export function ExerciseSetForm({
     setExercises(updated);
   };
 
-  // Autocomplete search with debounce
-  const handleExerciseNameChange = async (index: number, value: string) => {
-    // Update the exercise name
-    updateExercise(index, "custom_name", value);
+  const selectTemplate = (index: number, template: ExerciseTemplate) => {
+    const globalDefaults = app.theme_config?.default_exercise_schema || {};
+    const effectiveSchema: Record<string, any> = template.field_schema || {};
 
-    // Update search query
-    setSearchQuery((prev) => ({ ...prev, [index]: value }));
+    const newExerciseData = { ...exercises[index].data };
 
-    // Clear previous timeout
-    if (searchTimeoutRef.current[index]) {
-      clearTimeout(searchTimeoutRef.current[index]);
+    Object.entries(effectiveSchema).forEach(([fieldName, fieldDef]: [string, any]) => {
+      const tDefault = fieldDef?.default_value;
+      const gDefault = globalDefaults[fieldName]?.default_value;
+      const val = tDefault !== undefined ? tDefault : gDefault;
+      if (val !== undefined) {
+        newExerciseData[fieldName] = val;
+      }
+    });
+
+    if (index === 0) {
+      const templateSeriesDef = template.field_schema?.["series"]?.default_value;
+      const globalSeriesDef = globalDefaults["series"]?.default_value;
+      const seriesDefault = templateSeriesDef !== undefined ? templateSeriesDef : globalSeriesDef;
+      if (seriesDefault !== undefined) {
+        setSeries(Number(seriesDefault));
+      }
     }
 
-    // Debounce search
-    searchTimeoutRef.current[index] = setTimeout(async () => {
-      try {
-        // Fetch 1000 results to show essentially all exercises
-        const results = await exerciseTemplatesApi.autocomplete(app.id, value, 1000);
-        setSuggestions((prev) => ({ ...prev, [index]: results }));
-        setShowSuggestions((prev) => ({ ...prev, [index]: true }));
-      } catch (err) {
-        console.error("Error fetching autocomplete suggestions:", err);
-      }
-    }, 300);
-  };
-
-  const selectTemplate = (index: number, template: ExerciseTemplate) => {
-    updateExercise(index, "exercise_template_id", template.id);
-    updateExercise(index, "custom_name", template.name);
+    const updated = [...exercises];
+    updated[index] = {
+      ...updated[index],
+      exercise_template_id: template.id,
+      custom_name: template.name,
+      data: newExerciseData,
+    };
+    setExercises(updated);
     setSelectedTemplates((prev) => ({ ...prev, [index]: template }));
-    setShowSuggestions((prev) => ({ ...prev, [index]: false }));
-    setSuggestions((prev) => ({ ...prev, [index]: [] }));
   };
 
   const updateExerciseData = (exerciseIndex: number, fieldName: string, value: any) => {
@@ -123,7 +158,7 @@ export function ExerciseSetForm({
       return;
     }
 
-    if (series < 1) {
+    if (typeof series !== "number" || series < 1) {
       setError("El número de series debe ser al menos 1");
       return;
     }
@@ -193,12 +228,17 @@ export function ExerciseSetForm({
 
           {/* Series Count */}
           <div className="form-group">
-            <label className="form-label">Número de Series</label>
+            <label className="form-label" htmlFor="series-input">
+              Número de Series
+            </label>
             <input
+              id="series-input"
               type="number"
               className="form-input"
               value={series}
-              onChange={(e) => setSeries(parseInt(e.target.value) || 1)}
+              onChange={(e) =>
+                setSeries(e.target.value === "" ? "" : parseInt(e.target.value) || 1)
+              }
               min="1"
               required
             />
@@ -295,151 +335,99 @@ export function ExerciseSetForm({
                     </div>
 
                     {/* Autocomplete Input */}
-                    <div
-                      style={{
-                        position: "relative",
-                        marginBottom:
-                          showSuggestions[index] && suggestions[index]?.length > 0 ? "240px" : "0",
-                        transition: "margin-bottom 0.2s ease-out",
-                      }}
-                    >
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={exercise.custom_name || ""}
-                        onChange={(e) => handleExerciseNameChange(index, e.target.value)}
-                        onBlur={() => {
-                          // Delay hiding to allow click on suggestion
-                          setTimeout(() => {
-                            setShowSuggestions((prev) => ({ ...prev, [index]: false }));
-                          }, 200);
-                        }}
-                        placeholder="Nombre del ejercicio (empieza a escribir para buscar)"
-                        style={{ fontSize: "0.875rem" }}
-                        required
-                        onFocus={() => {
-                          // Trigger search on focus with current value (even if empty)
-                          handleExerciseNameChange(index, exercise.custom_name || "");
-                        }}
-                      />
-
-                      {/* Autocomplete Dropdown */}
-                      {showSuggestions[index] && suggestions[index]?.length > 0 && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: "100%",
-                            left: 0,
-                            right: 0,
-                            backgroundColor: theme.colors.background,
-                            border: `1px solid ${theme.colors.secondary}30`,
-                            borderRadius: "4px",
-                            marginTop: "0.25rem",
-                            maxHeight: "240px",
-                            overflowY: "auto",
-                            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                            zIndex: 1000,
-                          }}
-                        >
-                          {suggestions[index].map((template) => (
-                            <div
-                              key={template.id}
-                              onClick={() => selectTemplate(index, template)}
-                              style={{
-                                padding: "0.75rem",
-                                cursor: "pointer",
-                                borderBottom: `1px solid ${theme.colors.secondary}20`,
-                                transition: "background-color 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = `${theme.colors.primary}10`;
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontWeight: 600,
-                                  color: theme.colors.text,
-                                  fontSize: "0.875rem",
-                                }}
-                              >
-                                {template.name}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <ExerciseAutocomplete
+                      appId={app.id}
+                      value={exercise.custom_name || ""}
+                      onChange={(value) => updateExercise(index, "custom_name", value)}
+                      onSelect={(template) => selectTemplate(index, template)}
+                      placeholder="Nombre del ejercicio (empieza a escribir para buscar)"
+                      required
+                    />
 
                     {/* Dynamic Fields based on Template Schema */}
-                    {selectedTemplates[index] && selectedTemplates[index]!.field_schema && (
-                      <div style={{ marginTop: "1rem" }}>
-                        {Object.entries(selectedTemplates[index]!.field_schema)
-                          .filter(([fieldName]) => fieldName !== "series")
-                          .map(([fieldName, fieldDef]) => (
-                            <div key={fieldName} style={{ marginBottom: "0.75rem" }}>
-                              <label
-                                style={{
-                                  display: "block",
-                                  fontSize: "0.75rem",
-                                  fontWeight: 600,
-                                  color: theme.colors.text,
-                                  marginBottom: "0.25rem",
-                                }}
-                              >
-                                {fieldDef.label}
-                                {fieldDef.required && <span style={{ color: "#dc3545" }}> *</span>}
-                              </label>
-                              {fieldDef.type === "text" ? (
-                                <textarea
-                                  className="form-input"
-                                  value={exercise.data[fieldName] || ""}
-                                  onChange={(e) =>
-                                    updateExerciseData(index, fieldName, e.target.value)
-                                  }
-                                  placeholder={`Ingresa ${fieldDef.label.toLowerCase()}`}
-                                  rows={2}
-                                  style={{ fontSize: "0.875rem" }}
-                                  required={fieldDef.required}
-                                />
-                              ) : (
-                                <input
-                                  type={
-                                    fieldDef.type === "integer" ||
-                                    fieldDef.type === "float" ||
-                                    fieldDef.type === "number"
-                                      ? "number"
-                                      : "text"
-                                  }
-                                  className="form-input"
-                                  value={exercise.data[fieldName] || ""}
-                                  onChange={(e) => {
-                                    const value =
-                                      fieldDef.type === "integer" ||
-                                      fieldDef.type === "float" ||
-                                      fieldDef.type === "number"
-                                        ? e.target.value
-                                          ? parseFloat(e.target.value)
-                                          : ""
-                                        : e.target.value;
-                                    updateExerciseData(index, fieldName, value);
-                                  }}
-                                  placeholder={`Ingresa ${fieldDef.label.toLowerCase()}`}
-                                  step={
-                                    fieldDef.type === "float" || fieldDef.type === "number"
-                                      ? "0.1"
-                                      : "1"
-                                  }
-                                  style={{ fontSize: "0.875rem" }}
-                                  required={fieldDef.required}
-                                />
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    )}
+                    {(() => {
+                      const templateSchema = selectedTemplates[index]?.field_schema;
+                      if (!templateSchema) return null;
+
+                      const effectiveSchema: Record<string, any> = templateSchema;
+
+                      return (
+                        Object.keys(effectiveSchema).length > 0 && (
+                          <div style={{ marginTop: "1rem" }}>
+                            {Object.entries(effectiveSchema)
+                              .filter(([fieldName]) => fieldName !== "series")
+                              .map(([fieldName, fieldDef]: [string, any]) => (
+                                <div key={fieldName} style={{ marginBottom: "0.75rem" }}>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      fontSize: "0.75rem",
+                                      fontWeight: 600,
+                                      color: theme.colors.text,
+                                      marginBottom: "0.25rem",
+                                    }}
+                                  >
+                                    {formatFieldName(fieldName, fieldDef.label)}
+                                    {fieldDef.required && (
+                                      <span style={{ color: "#dc3545" }}> *</span>
+                                    )}
+                                  </label>
+                                  {fieldDef.type === "text" ? (
+                                    <textarea
+                                      className="form-input"
+                                      value={exercise.data[fieldName] ?? ""}
+                                      onChange={(e) =>
+                                        updateExerciseData(index, fieldName, e.target.value)
+                                      }
+                                      placeholder={`Ingresa ${formatFieldName(
+                                        fieldName,
+                                        fieldDef.label
+                                      ).toLowerCase()}`}
+                                      rows={2}
+                                      style={{ fontSize: "0.875rem" }}
+                                      required={fieldDef.required}
+                                    />
+                                  ) : (
+                                    <input
+                                      type={
+                                        fieldDef.type === "integer" ||
+                                        fieldDef.type === "float" ||
+                                        fieldDef.type === "number"
+                                          ? "number"
+                                          : "text"
+                                      }
+                                      className="form-input"
+                                      value={exercise.data[fieldName] ?? ""}
+                                      onChange={(e) => {
+                                        const value =
+                                          fieldDef.type === "integer" ||
+                                          fieldDef.type === "float" ||
+                                          fieldDef.type === "number"
+                                            ? e.target.value
+                                              ? parseFloat(e.target.value)
+                                              : ""
+                                            : e.target.value;
+                                        updateExerciseData(index, fieldName, value);
+                                      }}
+                                      placeholder={`Ingresa ${formatFieldName(
+                                        fieldName,
+                                        fieldDef.label
+                                      ).toLowerCase()}`}
+                                      step={
+                                        fieldDef.type === "float" || fieldDef.type === "number"
+                                          ? "0.1"
+                                          : "1"
+                                      }
+                                      style={{ fontSize: "0.875rem" }}
+                                      required={fieldDef.required}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        )
+                      );
+                    })()}
 
                     {!selectedTemplates[index] && (
                       <div

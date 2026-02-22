@@ -48,10 +48,10 @@ frontend: ## Start frontend dev server
 # --- Testing ---
 
 test-backend: ## Run backend tests
-	cd backend && poetry run pytest -v --ignore=.env
+	cd backend && poetry run pytest -v --ignore=.env $(ARGS)
 
 test-frontend: ## Run frontend tests
-	cd frontend && npm run test:agent
+	cd frontend && npm run test:agent $(ARGS)
 
 # --- Code Quality ---
 

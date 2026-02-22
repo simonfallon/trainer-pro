@@ -188,11 +188,13 @@ export function ExerciseSetDisplay({ sets, onEdit, onDelete }: ExerciseSetDispla
                             color: theme.colors.secondary,
                           }}
                         >
-                          {Object.entries(exercise.data).map(([key, value]) => (
-                            <span key={key}>
-                              <strong>{key}:</strong> {String(value)}
-                            </span>
-                          ))}
+                          {Object.entries(exercise.data)
+                            .filter(([key]) => key.toLowerCase() !== "series")
+                            .map(([key, value]) => (
+                              <span key={key}>
+                                <strong>{key}:</strong> {String(value)}
+                              </span>
+                            ))}
                         </div>
                       )}
                     </div>

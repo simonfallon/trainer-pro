@@ -204,7 +204,7 @@ async def test_exercise_template(
         field_schema={
             "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
             "series": {"type": "integer", "label": "Series", "required": True},
-            "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+            "peso": {"type": "float", "label": "Peso kg", "required": False},
         },
     )
     db_session.add(template)

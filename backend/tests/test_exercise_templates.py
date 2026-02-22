@@ -21,7 +21,7 @@ class TestExerciseTemplateEndpoints:
                 "field_schema": {
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
-                    "peso": {"type": "float", "label": "Peso (kg)", "required": False},
+                    "peso": {"type": "float", "label": "Peso kg", "required": False},
                 },
             },
         )
@@ -120,7 +120,7 @@ class TestExerciseTemplateEndpoints:
                 "field_schema": {
                     "repeticiones": {"type": "integer", "label": "Repeticiones", "required": True},
                     "series": {"type": "integer", "label": "Series", "required": True},
-                    "peso": {"type": "float", "label": "Peso (kg)", "required": True},
+                    "peso": {"type": "float", "label": "Peso kg", "required": True},
                     "variaciones": {"type": "text", "label": "Variaciones", "required": False},
                 },
             },
