@@ -11,7 +11,7 @@ interface DayViewProps {
   currentDate: Date;
   sessions: TrainingSession[];
   clients: Client[];
-  clientId?: number;
+  isFilteringClients: boolean;
   onSessionClick: (session: TrainingSession) => void;
   onSlotClick: (date: Date) => void;
   onSessionUpdate: (session: TrainingSession, newStart: Date) => void;
@@ -21,7 +21,7 @@ export const DayView: React.FC<DayViewProps> = ({
   currentDate,
   sessions,
   clients,
-  clientId,
+  isFilteringClients,
   onSessionClick,
   onSlotClick,
   onSessionUpdate,
@@ -34,7 +34,7 @@ export const DayView: React.FC<DayViewProps> = ({
 
   const daySessions = sessions.filter((session) => {
     const colStr = toColombianDateString(session.scheduled_at);
-    return colStr === dayStr && session.status !== "cancelled";
+    return colStr === dayStr;
   });
 
   const handleDayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -135,8 +135,8 @@ export const DayView: React.FC<DayViewProps> = ({
             const processedGroups = new Set<number>();
 
             daySessions.forEach((session) => {
-              if (session.session_group_id && !clientId) {
-                // Group sessions logic (only when NOT filtering by a single client)
+              if (session.session_group_id && !isFilteringClients) {
+                // Group sessions logic (only when NOT filtering by specific clients)
                 if (processedGroups.has(session.session_group_id)) return;
 
                 processedGroups.add(session.session_group_id);

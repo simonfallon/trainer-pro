@@ -311,47 +311,49 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {clients.map((client) => (
-                <tr
-                  key={client.id}
-                  onClick={() => router.push(`/dashboard/clients/${client.id}?app_id=${app.id}`)}
-                  style={{
-                    cursor: "pointer",
-                    transition: "background-color 0.2s",
-                  }}
-                >
-                  <td style={{ fontWeight: 600 }}>{client.name}</td>
-                  <td>{client.phone}</td>
-                  <td>{client.email || "-"}</td>
-                  <td
+              {[...clients]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((client) => (
+                  <tr
+                    key={client.id}
+                    onClick={() => router.push(`/dashboard/clients/${client.id}?app_id=${app.id}`)}
                     style={{
-                      maxWidth: "200px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                      transition: "background-color 0.2s",
                     }}
                   >
-                    {client.notes || "-"}
-                  </td>
-                  <td>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(client.id);
-                      }}
+                    <td style={{ fontWeight: 600 }}>{client.name}</td>
+                    <td>{client.phone}</td>
+                    <td>{client.email || "-"}</td>
+                    <td
                       style={{
-                        background: "none",
-                        border: "none",
-                        color: "#dc3545",
-                        cursor: "pointer",
-                        padding: "0.5rem",
+                        maxWidth: "200px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      {client.notes || "-"}
+                    </td>
+                    <td>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(client.id);
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#dc3545",
+                          cursor: "pointer",
+                          padding: "0.5rem",
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>

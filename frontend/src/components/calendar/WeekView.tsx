@@ -11,7 +11,7 @@ interface WeekViewProps {
   currentDate: Date;
   sessions: TrainingSession[];
   clients: Client[];
-  clientId?: number;
+  isFilteringClients: boolean;
   onSessionClick: (session: TrainingSession) => void;
   onSlotClick: (date: Date) => void;
   onSessionUpdate: (session: TrainingSession, newStart: Date) => void;
@@ -21,7 +21,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
   currentDate,
   sessions,
   clients,
-  clientId,
+  isFilteringClients,
   onSessionClick,
   onSlotClick,
   onSessionUpdate,
@@ -41,7 +41,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
 
     return sessions.filter((session) => {
       const colStr = toColombianDateString(session.scheduled_at);
-      return colStr === dayStr && session.status !== "cancelled";
+      return colStr === dayStr;
     });
   };
 
@@ -143,8 +143,8 @@ export const WeekView: React.FC<WeekViewProps> = ({
           const processedGroups = new Set<number>();
 
           daySessions.forEach((session) => {
-            if (session.session_group_id && !clientId) {
-              // Group sessions logic (only when NOT filtering by a single client)
+            if (session.session_group_id && !isFilteringClients) {
+              // Group sessions logic (only when NOT filtering by specific clients)
               if (processedGroups.has(session.session_group_id)) return;
 
               processedGroups.add(session.session_group_id);

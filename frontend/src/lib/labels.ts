@@ -26,5 +26,4 @@ export function getLocationTypeLabel(type: string): string {
 export const SESSION_STATUS_LABELS: Record<string, string> = {
   completed: "Completada",
   scheduled: "Programada",
-  cancelled: "Cancelada",
 };

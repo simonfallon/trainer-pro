@@ -92,15 +92,13 @@ class TestSessionEndpoints:
         assert data["status"] == "completed"
 
     async def test_delete_session_cancels(self, client: AsyncClient, test_session: TrainingSession):
-        """Test that deleting a session cancels it."""
+        """Test that deleting a session removes it."""
         response = await client.delete(f"/sessions/{test_session.id}")
         assert response.status_code == 204
 
-        # Verify session is cancelled
+        # Verify session is deleted
         get_response = await client.get(f"/sessions/{test_session.id}")
-        assert get_response.status_code == 200
-        data = get_response.json()
-        assert data["status"] == "cancelled"
+        assert get_response.status_code == 404
 
     async def test_delete_session_group_cancels_all_sessions(
         self,
@@ -108,7 +106,7 @@ class TestSessionEndpoints:
         test_trainer: Trainer,
         test_client_record: Client,
     ):
-        """Test that deleting a session group cancels all sessions within it."""
+        """Test that deleting a session group deletes all sessions within it."""
         from datetime import datetime, timedelta
 
         other_client_data = {
@@ -138,8 +136,7 @@ class TestSessionEndpoints:
 
         for sid in session_ids:
             get_resp = await client.get(f"/sessions/{sid}")
-            assert get_resp.status_code == 200
-            assert get_resp.json()["status"] == "cancelled"
+            assert get_resp.status_code == 404
 
     async def test_list_sessions_filter_by_client(
         self,
@@ -237,3 +234,34 @@ class TestSessionEndpoints:
         assert "sessions" in active_data
         assert len(active_data["sessions"]) == 2
         assert active_data["notes"] == "Group session!"
+
+    async def test_active_session_consumes_prepaid_balance(
+        self,
+        client: AsyncClient,
+        test_client_record: Client,
+    ):
+        """Test that starting an active session automatically consumes prepaid balance."""
+        # Provide prepaid balance
+        await client.post(
+            f"/clients/{test_client_record.id}/payments",
+            json={"sessions_paid": 5, "amount_cop": 250000},
+        )
+
+        # Start ad-hoc active session
+        start_resp = await client.post(
+            "/sessions/active/start",
+            json={
+                "client_ids": [test_client_record.id],
+                "duration_minutes": 60,
+                "notes": "Testing prepaid balance in active session",
+            },
+        )
+        assert start_resp.status_code == 201
+        session_data = start_resp.json()
+        assert session_data["is_paid"] is True
+
+        # Check balance
+        balance_resp = await client.get(f"/clients/{test_client_record.id}/payment-balance")
+        balance = balance_resp.json()
+        assert balance["paid_sessions"] == 1
+        assert balance["prepaid_sessions"] == 4

@@ -13,23 +13,28 @@ describe("SessionModal", () => {
       name: "Ana García",
       email: "ana@test.com",
       phone: "1234567890",
-      status: "active",
       created_at: "",
       updated_at: "",
-    },
+    } as unknown as Client,
     {
       id: 2,
       name: "Carlos Rodríguez",
       email: "carlos@test.com",
       phone: "0987654321",
-      status: "active",
       created_at: "",
       updated_at: "",
-    },
+    } as unknown as Client,
   ];
 
   const mockLocations: Location[] = [
-    { id: 1, name: "Gym", type: "gym", created_at: "", updated_at: "", trainer_id: 1 },
+    {
+      id: 1,
+      name: "Gym",
+      type: "gym",
+      created_at: "",
+      updated_at: "",
+      trainer_id: 1,
+    } as unknown as Location,
   ];
 
   const defaultProps = {
@@ -39,6 +44,7 @@ describe("SessionModal", () => {
     onClose: vi.fn(),
     onSave: vi.fn(),
     onStatusChange: vi.fn(),
+    onDelete: vi.fn(),
     initialDate: new Date("2026-02-04T10:00:00"),
   };
 
@@ -47,6 +53,11 @@ describe("SessionModal", () => {
     expect(screen.getByText("Programar Sesión")).toBeInTheDocument();
     expect(screen.getByText("Selecciona uno o más clientes")).toBeInTheDocument();
     expect(screen.getByText("Guardar")).toBeInTheDocument();
+  });
+
+  it("pre-selects clients when initialClientIds is provided in create mode", () => {
+    render(<SessionModal {...defaultProps} initialClientIds={[2]} />);
+    expect(screen.getByText("Carlos Rodríguez")).toBeInTheDocument();
   });
 
   it("allows selecting multiple clients", () => {

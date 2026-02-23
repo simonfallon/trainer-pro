@@ -16,13 +16,13 @@ export function PaymentModal({
   onSuccess: () => void;
 }) {
   const { darkStyles, theme } = useDarkStyles();
-  const [sessionsPaid, setSessionsPaid] = useState(1);
-  const [amountPerSession, setAmountPerSession] = useState(50000);
+  const [sessionsPaid, setSessionsPaid] = useState<number | "">(1);
+  const [amountPerSession, setAmountPerSession] = useState<number | "">(50000);
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const totalAmount = sessionsPaid * amountPerSession;
+  const totalAmount = (Number(sessionsPaid) || 0) * (Number(amountPerSession) || 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +30,7 @@ export function PaymentModal({
     setError("");
     try {
       await clientsApi.registerPayment(clientId, {
-        sessions_paid: sessionsPaid,
+        sessions_paid: Number(sessionsPaid) || 1,
         amount_cop: totalAmount,
         notes: notes || undefined,
       });
@@ -63,7 +63,7 @@ export function PaymentModal({
               className="form-input"
               min="1"
               value={sessionsPaid}
-              onChange={(e) => setSessionsPaid(parseInt(e.target.value) || 1)}
+              onChange={(e) => setSessionsPaid(e.target.value === "" ? "" : Number(e.target.value))}
               required
             />
           </div>
@@ -76,7 +76,9 @@ export function PaymentModal({
               min="0"
               step="1000"
               value={amountPerSession}
-              onChange={(e) => setAmountPerSession(parseInt(e.target.value) || 0)}
+              onChange={(e) =>
+                setAmountPerSession(e.target.value === "" ? "" : Number(e.target.value))
+              }
               required
             />
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { clientsApi, exerciseSetsApi } from "@/lib/api";
 import { useDarkStyles } from "@/hooks/useDarkStyles";
@@ -38,6 +38,26 @@ function ClientExerciseSetsModal({ clientId, isOpen, onClose }: ClientExerciseSe
       return results.flat().filter((set) => set.exercises.length > 0);
     }
   );
+
+  const sortedSets = useMemo(() => {
+    if (!allSets || !sessions) return [];
+
+    const sessionsMap = new Map(sessions.map((s) => [s.id, s]));
+
+    return [...allSets].sort((a, b) => {
+      const sessionA = a.session_id ? sessionsMap.get(a.session_id) : null;
+      const sessionB = b.session_id ? sessionsMap.get(b.session_id) : null;
+
+      const dateA = sessionA
+        ? new Date(sessionA.scheduled_at).getTime()
+        : new Date(a.created_at).getTime();
+      const dateB = sessionB
+        ? new Date(sessionB.scheduled_at).getTime()
+        : new Date(b.created_at).getTime();
+
+      return dateB - dateA;
+    });
+  }, [allSets, sessions]);
 
   if (!isOpen) return null;
 
@@ -95,18 +115,68 @@ function ClientExerciseSetsModal({ clientId, isOpen, onClose }: ClientExerciseSe
           </button>
         </div>
 
-        {!allSets || allSets.length === 0 ? (
+        {!sortedSets || sortedSets.length === 0 ? (
           <div style={{ color: "#6b7280" }}>No hay circuitos registrados para este cliente.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            {allSets.map((exerciseSet) => (
-              <ExerciseSetDisplay
-                key={exerciseSet.id}
-                sets={[exerciseSet]}
-                onEdit={() => {}} // Read-only in history view
-                onDelete={() => {}} // Read-only in history view
-              />
-            ))}
+            {sortedSets.map((exerciseSet, index) => {
+              const session = exerciseSet.session_id
+                ? sessions?.find((s) => s.id === exerciseSet.session_id)
+                : null;
+              const dateStr = session
+                ? formatDate(session.scheduled_at)
+                : formatDate(exerciseSet.created_at);
+
+              let showDateHeader = false;
+              if (index === 0) {
+                showDateHeader = true;
+              } else {
+                const prevSet = sortedSets[index - 1];
+                const prevSession = prevSet.session_id
+                  ? sessions?.find((s) => s.id === prevSet.session_id)
+                  : null;
+                const prevDateStr = prevSession
+                  ? formatDate(prevSession.scheduled_at)
+                  : formatDate(prevSet.created_at);
+                if (dateStr !== prevDateStr) {
+                  showDateHeader = true;
+                }
+              }
+
+              return (
+                <div
+                  key={exerciseSet.id}
+                  style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+                >
+                  {showDateHeader && (
+                    <div style={{ marginTop: index === 0 ? 0 : "1rem" }}>
+                      <hr
+                        style={{
+                          border: "0",
+                          borderTop: "1px solid #e1e5e9",
+                          margin: "0 0 1rem 0",
+                        }}
+                      />
+                      <h3
+                        style={{
+                          fontSize: "1.1rem",
+                          fontWeight: 600,
+                          color: "#4b5563",
+                          margin: "0",
+                        }}
+                      >
+                        {dateStr}
+                      </h3>
+                    </div>
+                  )}
+                  <ExerciseSetDisplay
+                    sets={[exerciseSet]}
+                    onEdit={() => {}} // Read-only in history view
+                    onDelete={() => {}} // Read-only in history view
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

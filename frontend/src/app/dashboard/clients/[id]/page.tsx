@@ -55,9 +55,11 @@ export default function ClientDetailPage() {
   const totalSesiones = sessions?.length ?? 0;
   const sesionsPagadas = balance?.paid_sessions ?? 0;
 
+  const totalPaidSessions = balance ? balance.paid_sessions + balance.prepaid_sessions : 0;
+
   const progressPercent =
     balance && balance.total_sessions > 0
-      ? (balance.paid_sessions / balance.total_sessions) * 100
+      ? Math.min((totalPaidSessions / balance.total_sessions) * 100, 100)
       : 0;
 
   // -----------------------------------------------------------------------
@@ -567,15 +569,26 @@ export default function ClientDetailPage() {
               <h3 style={{ color: theme.colors.text, fontSize: "1.125rem", margin: 0 }}>
                 Sesiones de Entrenamiento
               </h3>
-              <button
-                className="btn btn-primary"
-                onClick={() =>
-                  router.push(`/dashboard/calendar?app_id=${appId}&client=${clientId}`)
-                }
-                style={{ fontSize: "0.875rem", padding: "0.5rem 1rem" }}
-              >
-                Ver Calendario
-              </button>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() =>
+                    router.push(`/dashboard/calendar?app_id=${appId}&client=${clientId}`)
+                  }
+                  style={{ fontSize: "0.875rem", padding: "0.5rem 1rem" }}
+                >
+                  Ver Calendario
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() =>
+                    router.push(`/dashboard/calendar?app_id=${appId}&prefill_client=${clientId}`)
+                  }
+                  style={{ fontSize: "0.875rem", padding: "0.5rem 1rem" }}
+                >
+                  Programar Sesión
+                </button>
+              </div>
             </div>
 
             <div style={{ overflowX: "auto" }}>
@@ -733,7 +746,7 @@ export default function ClientDetailPage() {
                 >
                   <div>
                     <div style={{ fontSize: "1.5rem", fontWeight: 700, color: theme.colors.text }}>
-                      {balance.paid_sessions}/{balance.total_sessions}
+                      {totalPaidSessions}/{balance.total_sessions}
                     </div>
                     <div
                       style={{

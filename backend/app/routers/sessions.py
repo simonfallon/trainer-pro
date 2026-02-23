@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.auth_utils import get_current_trainer_id
 from app.database import get_db
 from app.models.client import Client
+from app.models.payment import Payment
 from app.models.session import SessionStatus, TrainingSession
 from app.models.session_group import SessionGroup
 from app.schemas.session import (
@@ -42,6 +43,44 @@ async def _get_session_owned_by(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
 
     return session
+
+
+async def _apply_prepaid_balance(client_id: int, db: AsyncSession):
+    """Apply prepaid balance to unpaid sessions."""
+    payments_result = await db.execute(
+        select(func.sum(Payment.sessions_paid)).where(Payment.client_id == client_id)
+    )
+    total_paid = payments_result.scalar() or 0
+
+    if total_paid == 0:
+        return
+
+    sessions_result = await db.execute(
+        select(TrainingSession)
+        .where(
+            TrainingSession.client_id == client_id,
+            TrainingSession.status.in_(
+                [
+                    SessionStatus.COMPLETED.value,
+                    SessionStatus.SCHEDULED.value,
+                    SessionStatus.IN_PROGRESS.value,
+                ]
+            ),
+        )
+        .order_by(TrainingSession.scheduled_at.asc())
+    )
+    sessions = sessions_result.scalars().all()
+
+    paid_count = sum(1 for s in sessions if s.is_paid)
+    prepaid_available = max(0, total_paid - paid_count)
+
+    if prepaid_available > 0:
+        unpaid_sessions = [s for s in sessions if not s.is_paid]
+        now = datetime.now(UTC)
+        for i in range(min(prepaid_available, len(unpaid_sessions))):
+            unpaid_sessions[i].is_paid = True
+            unpaid_sessions[i].paid_at = now
+        await db.flush()
 
 
 @router.get("", response_model=list[SessionResponse])
@@ -91,7 +130,6 @@ async def get_session_stats(
     total = len(sessions)
     completed = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED.value)
     scheduled = sum(1 for s in sessions if s.status == SessionStatus.SCHEDULED.value)
-    cancelled = sum(1 for s in sessions if s.status == SessionStatus.CANCELLED.value)
 
     client_query = (
         select(func.count(func.distinct(Client.id)))
@@ -105,7 +143,6 @@ async def get_session_stats(
         total_sessions=total,
         completed_sessions=completed,
         scheduled_sessions=scheduled,
-        cancelled_sessions=cancelled,
         total_clients=total_clients,
     )
 
@@ -157,6 +194,7 @@ async def start_active_session(
         session.status = SessionStatus.IN_PROGRESS.value
         session.started_at = now
         await db.flush()
+        await _apply_prepaid_balance(session.client_id, db)
         await db.refresh(session)
         return session
 
@@ -175,6 +213,7 @@ async def start_active_session(
             )
             db.add(session)
             await db.flush()
+            await _apply_prepaid_balance(data.client_ids[0], db)
             await db.refresh(session)
             return session
 
@@ -204,6 +243,8 @@ async def start_active_session(
                 db.add(session)
 
             await db.flush()
+            for client_id in data.client_ids:
+                await _apply_prepaid_balance(client_id, db)
 
             result = await db.execute(
                 select(SessionGroup)
@@ -275,6 +316,7 @@ async def create_session(
     )
     db.add(session)
     await db.flush()
+    await _apply_prepaid_balance(session_data.client_id, db)
     await db.refresh(session)
     return session
 
@@ -297,6 +339,7 @@ async def update_session(
         setattr(session, field, value)
 
     await db.flush()
+    await _apply_prepaid_balance(session.client_id, db)
     await db.refresh(session)
     return session
 
@@ -307,9 +350,9 @@ async def delete_session(
     trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Cancel a session (soft delete)."""
+    """Delete a session."""
     session = await _get_session_owned_by(session_id, trainer_id, db)
-    session.status = SessionStatus.CANCELLED.value
+    await db.delete(session)
     await db.flush()
 
 
@@ -361,6 +404,9 @@ async def create_session_group(
 
     await db.flush()
 
+    for client_id in group_data.client_ids:
+        await _apply_prepaid_balance(client_id, db)
+
     result = await db.execute(
         select(SessionGroup)
         .options(selectinload(SessionGroup.sessions))
@@ -401,7 +447,7 @@ async def delete_session_group(
     trainer_id: int = Depends(get_current_trainer_id),
     db: AsyncSession = Depends(get_db),
 ):
-    """Cancel all sessions in a session group (soft delete)."""
+    """Delete all sessions in a session group."""
     from fastapi import HTTPException
 
     result = await db.execute(
@@ -416,9 +462,7 @@ async def delete_session_group(
     if group.trainer_id != trainer_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
 
-    for session in group.sessions:
-        session.status = SessionStatus.CANCELLED.value
-
+    await db.delete(group)
     await db.flush()
 
 

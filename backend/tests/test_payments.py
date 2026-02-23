@@ -145,3 +145,59 @@ class TestPaymentEndpoints:
         """Test 404 for non-existent client payment balance."""
         response = await client.get("/clients/999999/payment-balance")
         assert response.status_code == 404
+
+    async def test_auto_apply_prepaid_balance_new_session(
+        self,
+        client: AsyncClient,
+        test_client_record: Client,
+    ):
+        """Test that a new session automatically claims prepaid balance and reflects in payment-balance."""
+        # 1. Provide a prepaid balance (10 sessions paid, 0 used)
+        await client.post(
+            f"/clients/{test_client_record.id}/payments",
+            json={
+                "sessions_paid": 10,
+                "amount_cop": 500000,
+            },
+        )
+
+        # 2. Add 3 scheduled sessions
+        for _i in range(3):
+            await client.post(
+                "/sessions",
+                json={
+                    "client_id": test_client_record.id,
+                    "location_id": None,
+                    "scheduled_at": datetime.now().isoformat(),
+                    "duration_minutes": 60,
+                    "status": "scheduled",
+                },
+            )
+
+        # 3. Check payment balance. It should say:
+        # total_sessions=3, paid_sessions=3, unpaid=0, prepaid=7
+        balance_response = await client.get(f"/clients/{test_client_record.id}/payment-balance")
+        balance = balance_response.json()
+        assert balance["total_sessions"] == 3
+        # In a generic query, all 3 are fully paid
+        assert balance["paid_sessions"] == 3
+        assert balance["unpaid_sessions"] == 0
+        assert balance["prepaid_sessions"] == 7
+
+        # 4. Add another session (10/4 overall)
+        await client.post(
+            "/sessions",
+            json={
+                "client_id": test_client_record.id,
+                "location_id": None,
+                "scheduled_at": datetime.now().isoformat(),
+                "duration_minutes": 60,
+                "status": "scheduled",
+            },
+        )
+
+        balance_response = await client.get(f"/clients/{test_client_record.id}/payment-balance")
+        balance = balance_response.json()
+        assert balance["total_sessions"] == 4
+        assert balance["paid_sessions"] == 4
+        assert balance["prepaid_sessions"] == 6

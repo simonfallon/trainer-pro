@@ -17,7 +17,6 @@ class SessionStatus(str, PyEnum):
     SCHEDULED = "scheduled"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
-    CANCELLED = "cancelled"
 
 
 class TrainingSession(Base):

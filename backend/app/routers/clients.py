@@ -168,10 +168,16 @@ async def get_client_payment_balance(
     """Get payment balance summary for a client."""
     await _get_client_owned_by(client_id, trainer_id, db)
 
-    # Count sessions (only completed and scheduled, not cancelled)
+    # Count sessions (only completed, scheduled, and in_progress, not cancelled)
     sessions_query = select(TrainingSession).where(
         TrainingSession.client_id == client_id,
-        TrainingSession.status.in_([SessionStatus.COMPLETED.value, SessionStatus.SCHEDULED.value]),
+        TrainingSession.status.in_(
+            [
+                SessionStatus.COMPLETED.value,
+                SessionStatus.SCHEDULED.value,
+                SessionStatus.IN_PROGRESS.value,
+            ]
+        ),
     )
     sessions_result = await db.execute(sessions_query)
     sessions = sessions_result.scalars().all()
@@ -232,7 +238,11 @@ async def register_client_payment(
             TrainingSession.client_id == client_id,
             TrainingSession.is_paid.is_(False),
             TrainingSession.status.in_(
-                [SessionStatus.COMPLETED.value, SessionStatus.SCHEDULED.value]
+                [
+                    SessionStatus.COMPLETED.value,
+                    SessionStatus.SCHEDULED.value,
+                    SessionStatus.IN_PROGRESS.value,
+                ]
             ),
         )
         .order_by(TrainingSession.scheduled_at.asc())

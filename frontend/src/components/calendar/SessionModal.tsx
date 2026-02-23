@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { TrainingSession, Client, Location } from "@/types";
 import { SESSION_STATUS_LABELS } from "@/lib/labels";
 import {
@@ -15,6 +16,7 @@ interface SessionModalProps {
   session?: TrainingSession;
   groupSessions?: TrainingSession[];
   initialDate?: Date;
+  initialClientIds?: number[];
   clients: Client[];
   locations: Location[];
   onClose: () => void;
@@ -28,6 +30,7 @@ export const SessionModal: React.FC<SessionModalProps> = ({
   session,
   groupSessions,
   initialDate,
+  initialClientIds,
   clients,
   locations = [],
   onClose,
@@ -49,11 +52,12 @@ export const SessionModal: React.FC<SessionModalProps> = ({
   const [showClientDropdown, setShowClientDropdown] = useState(false);
 
   useEffect(() => {
-    if (mode === "create" && initialDate) {
+    if (mode === "create") {
       setFormData((prev) => ({
         ...prev,
-        date: toColombianDateString(initialDate),
-        time: toColombianTimeString(initialDate),
+        date: initialDate ? toColombianDateString(initialDate) : prev.date,
+        time: initialDate ? toColombianTimeString(initialDate) : prev.time,
+        client_ids: initialClientIds || [],
       }));
     } else if ((mode === "edit" || mode === "view") && session) {
       const date = new Date(session.scheduled_at);
@@ -159,7 +163,15 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                   }}
                 >
                   {formData.client_ids.map((id) => (
-                    <li key={id}>{clients.find((c) => c.id === id)?.name || "Desconocido"}</li>
+                    <li key={id}>
+                      <Link
+                        href={`/dashboard/clients/${id}`}
+                        style={{ color: "var(--primary-color, #0070f3)", textDecoration: "none" }}
+                        onClick={onClose}
+                      >
+                        {clients.find((c) => c.id === id)?.name || "Desconocido"}
+                      </Link>
+                    </li>
                   ))}
                 </ul>
               ) : (
@@ -229,34 +241,41 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                   </button>
                   <button
                     className="btn"
-                    style={{ backgroundColor: "#dc3545", color: "white", borderColor: "#dc3545" }}
-                    onClick={() => handleStatusAction("cancelled")}
+                    style={{
+                      backgroundColor: "#dc3545",
+                      color: "white",
+                      borderColor: "#dc3545",
+                      marginLeft: "auto",
+                    }}
+                    onClick={handleDelete}
                   >
                     Cancelar Sesión
                   </button>
                 </>
               ) : (
-                <div
-                  style={{
-                    color: session.status === "completed" ? "#28a745" : "#dc3545",
-                    fontWeight: 600,
-                  }}
-                >
-                  Sesión {SESSION_STATUS_LABELS[session.status] || session.status}
-                </div>
+                <>
+                  <div
+                    style={{
+                      color: session.status === "completed" ? "#28a745" : "#dc3545",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Sesión {SESSION_STATUS_LABELS[session.status] || session.status}
+                  </div>
+                  <button
+                    className="btn"
+                    style={{
+                      backgroundColor: "transparent",
+                      color: "#dc3545",
+                      borderColor: "#dc3545",
+                      marginLeft: "auto",
+                    }}
+                    onClick={handleDelete}
+                  >
+                    Eliminar
+                  </button>
+                </>
               )}
-              <button
-                className="btn"
-                style={{
-                  backgroundColor: "transparent",
-                  color: "#dc3545",
-                  borderColor: "#dc3545",
-                  marginLeft: "auto",
-                }}
-                onClick={handleDelete}
-              >
-                Eliminar
-              </button>
             </div>
           </div>
         </div>
@@ -316,31 +335,35 @@ export const SessionModal: React.FC<SessionModalProps> = ({
                     boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {clients.map((client) => (
-                    <div
-                      key={client.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        borderBottom: "1px solid var(--border-color)",
-                      }}
-                      onClick={() => handleClientToggle(client.id)}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "var(--background-muted)")
-                      }
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.client_ids.includes(client.id)}
-                        onChange={() => {}} // Handled by parent div onClick
-                        style={{ marginRight: "8px", pointerEvents: "none" }}
-                      />
-                      <span>{client.name}</span>
-                    </div>
-                  ))}
+                  {[...clients]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((client) => (
+                      <div
+                        key={client.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid var(--border-color)",
+                        }}
+                        onClick={() => handleClientToggle(client.id)}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = "var(--background-muted)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor = "transparent")
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.client_ids.includes(client.id)}
+                          onChange={() => {}} // Handled by parent div onClick
+                          style={{ marginRight: "8px", pointerEvents: "none" }}
+                        />
+                        <span>{client.name}</span>
+                      </div>
+                    ))}
                   <div
                     style={{
                       padding: "8px 12px",

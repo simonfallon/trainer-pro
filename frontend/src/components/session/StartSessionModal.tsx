@@ -78,7 +78,7 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 className="modal-title">Iniciar Sesión Ad-Hoc</h3>
+          <h3 className="modal-title">Iniciar Sesión</h3>
           <button className="modal-close" onClick={onClose}>
             ×
           </button>
@@ -123,31 +123,35 @@ export const StartSessionModal: React.FC<StartSessionModalProps> = ({
                     boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {clients.map((client) => (
-                    <div
-                      key={client.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                        borderBottom: "1px solid var(--border-color)",
-                      }}
-                      onClick={() => handleClientToggle(client.id)}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = "var(--background-muted)")
-                      }
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={formData.client_ids.includes(client.id)}
-                        onChange={() => {}} // Handled by parent div onClick
-                        style={{ marginRight: "8px", pointerEvents: "none" }}
-                      />
-                      <span>{client.name}</span>
-                    </div>
-                  ))}
+                  {[...clients]
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((client) => (
+                      <div
+                        key={client.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          borderBottom: "1px solid var(--border-color)",
+                        }}
+                        onClick={() => handleClientToggle(client.id)}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.backgroundColor = "var(--background-muted)")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.backgroundColor = "transparent")
+                        }
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.client_ids.includes(client.id)}
+                          onChange={() => {}} // Handled by parent div onClick
+                          style={{ marginRight: "8px", pointerEvents: "none" }}
+                        />
+                        <span>{client.name}</span>
+                      </div>
+                    ))}
                   <div
                     style={{
                       padding: "8px 12px",

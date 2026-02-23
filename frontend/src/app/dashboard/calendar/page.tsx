@@ -13,7 +13,14 @@ import { toUtcIsoString, interpretLocalAsColombian } from "@/lib/dateUtils";
 export default function CalendarPage() {
   const { app } = useDashboardApp();
   const searchParams = useSearchParams();
-  const clientId = searchParams.get("client") ? Number(searchParams.get("client")) : undefined;
+  const initialClientStr = searchParams.get("client");
+  const prefillClientStr = searchParams.get("prefill_client");
+  const initialClientId = initialClientStr ? Number(initialClientStr) : undefined;
+  const prefillClientId = prefillClientStr ? Number(prefillClientStr) : undefined;
+
+  const [selectedClientIds, setSelectedClientIds] = useState<number[]>(
+    initialClientId ? [initialClientId] : []
+  );
   const [clients, setClients] = useState<Client[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -34,9 +41,10 @@ export default function CalendarPage() {
   const startStr = start.toISOString();
   const endStr = end.toISOString();
 
-  const sessionsKey = `/sessions-${app.trainer_id}-${startStr}-${endStr}${clientId ? `-${clientId}` : ""}`;
-  const { data: sessions = [] } = useSWR<TrainingSession[]>(sessionsKey, () =>
-    sessionsApi.list(app.trainer_id, startStr, endStr, clientId)
+  const sessionsKey = `/sessions-${app.trainer_id}-${startStr}-${endStr}`;
+  const { data: sessions = [] } = useSWR<TrainingSession[]>(
+    sessionsKey,
+    () => sessionsApi.list(app.trainer_id, startStr, endStr) // Fetch all for the period
   );
 
   useEffect(() => {
@@ -147,7 +155,8 @@ export default function CalendarPage() {
         sessions={sessions}
         clients={clients}
         currentDate={currentDate}
-        clientId={clientId}
+        selectedClientIds={selectedClientIds}
+        onSelectedClientIdsChange={setSelectedClientIds}
         onDateChange={setCurrentDate}
         onSessionClick={handleSessionClick}
         onSlotClick={handleSlotClick}
@@ -160,6 +169,7 @@ export default function CalendarPage() {
           session={modalConfig.session}
           groupSessions={modalConfig.groupSessions}
           initialDate={modalConfig.initialDate}
+          initialClientIds={prefillClientId ? [prefillClientId] : selectedClientIds}
           clients={clients}
           locations={locations}
           onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}

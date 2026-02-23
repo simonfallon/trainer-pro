@@ -119,7 +119,7 @@ export interface Client {
   updated_at: string;
 }
 
-export type SessionStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+export type SessionStatus = "scheduled" | "in_progress" | "completed";
 
 export interface TrainingSession {
   id: number;
@@ -157,7 +157,6 @@ export interface SessionStats {
   total_sessions: number;
   completed_sessions: number;
   scheduled_sessions: number;
-  cancelled_sessions: number;
   total_clients: number;
 }
 

@@ -68,7 +68,6 @@ class SessionStats(BaseModel):
     total_sessions: int
     completed_sessions: int
     scheduled_sessions: int
-    cancelled_sessions: int
     total_clients: int
 
 
